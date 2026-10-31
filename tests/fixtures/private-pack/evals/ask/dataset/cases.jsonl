@@ -1,0 +1,2 @@
+{"id":"demo-01","question":"What is this talk about?","source":"synthetic","tyler_answer":null,"category":"grounded","sourceId":"lindowlabs-minds-and-models","expect":{"mustIncludeAny":["model","learning","linkedin"],"maxSentences":4}}
+{"id":"demo-02","question":"What are you learning about voice?","source":"essay","tyler_answer":"Voice is the moat.","category":"agreement","essayId":"e_demo","essayTitle":"Demo"}

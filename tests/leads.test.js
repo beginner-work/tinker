@@ -137,32 +137,41 @@ test("import accepts new channels fromAddress and dedupes", async () => {
   assert.equal(again.body.leads[0].stage, "replied");
   assert.equal(tables.lead.rows.filter((row) => row.personName === "Sam Lee").length, 1);
 });
-test("Tyler email seeds outreach-from when empty; others stay blank", async () => {
-  const seeded = await store.getOutreachSettings({
-    userId: "user-a",
-    emailHint: "tyler.lindow@gmail.com",
+test("outreach-from seeds from private/env map when empty; others stay blank", async () => {
+  const prevJson = process.env.TINKER_OUTREACH_FROM_DEFAULTS_JSON;
+  process.env.TINKER_OUTREACH_FROM_DEFAULTS_JSON = JSON.stringify({
+    "owner@example.com": "from@example.com",
   });
-  assert.equal(seeded.defaultFromAddress, "tyler@lindowlabs.dev");
-  const again = await store.getOutreachSettings({
-    userId: "user-a",
-    emailHint: "tyler.lindow@gmail.com",
-  });
-  assert.equal(again.defaultFromAddress, "tyler@lindowlabs.dev");
-  const other = await store.getOutreachSettings({
-    userId: "user-b",
-    emailHint: "other@example.com",
-  });
-  assert.equal(other.defaultFromAddress, "");
-  await store.setOutreachSettings({
-    userId: "user-a",
-    emailHint: "tyler.lindow@gmail.com",
-    patch: { defaultFromAddress: "custom@lindowlabs.dev" },
-  });
-  const custom = await store.getOutreachSettings({
-    userId: "user-a",
-    emailHint: "tyler.lindow@gmail.com",
-  });
-  assert.equal(custom.defaultFromAddress, "custom@lindowlabs.dev");
+  try {
+    const seeded = await store.getOutreachSettings({
+      userId: "user-a",
+      emailHint: "owner@example.com",
+    });
+    assert.equal(seeded.defaultFromAddress, "from@example.com");
+    const again = await store.getOutreachSettings({
+      userId: "user-a",
+      emailHint: "owner@example.com",
+    });
+    assert.equal(again.defaultFromAddress, "from@example.com");
+    const other = await store.getOutreachSettings({
+      userId: "user-b",
+      emailHint: "other@example.com",
+    });
+    assert.equal(other.defaultFromAddress, "");
+    await store.setOutreachSettings({
+      userId: "user-a",
+      emailHint: "owner@example.com",
+      patch: { defaultFromAddress: "custom@example.com" },
+    });
+    const custom = await store.getOutreachSettings({
+      userId: "user-a",
+      emailHint: "owner@example.com",
+    });
+    assert.equal(custom.defaultFromAddress, "custom@example.com");
+  } finally {
+    if (prevJson == null) delete process.env.TINKER_OUTREACH_FROM_DEFAULTS_JSON;
+    else process.env.TINKER_OUTREACH_FROM_DEFAULTS_JSON = prevJson;
+  }
 });
 
 test("draft channels fromAddress settings and mark-sent", async () => {

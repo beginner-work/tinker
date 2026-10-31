@@ -6,8 +6,6 @@ const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
-
 const extract = require("../evals/ask/lib/extract-pairs.js");
 const load = require("../evals/ask/lib/load-dataset.js");
 const scorers = require("../evals/ask/lib/scorers.js");
@@ -56,49 +54,29 @@ describe("extract-pairs from essay prompts", () => {
   });
 });
 
-describe("ask dataset load (~200 tagged cases)", () => {
-  test("cases.jsonl loads with source tags and tyler_answer schema", () => {
+describe("ask dataset load (private pack)", () => {
+  test("cases load with source tags and tyler_answer schema", () => {
     const cases = load.loadCases();
-    assert.ok(cases.length >= 190, `expected ~200 cases, got ${cases.length}`);
-    assert.ok(cases.length <= 250, `expected ~200 cases, got ${cases.length}`);
+    // Full ~200 bank lives in the private pack; unit tests use the sanitized fixture.
+    assert.ok(cases.length >= 1, `expected cases from TINKER_PRIVATE_DIR, got ${cases.length}`);
 
-    const bySource = {};
-    const byCategory = {};
-    let withTyler = 0;
     for (const c of cases) {
-      bySource[c.source] = (bySource[c.source] || 0) + 1;
-      byCategory[c.category] = (byCategory[c.category] || 0) + 1;
-      if (c.tyler_answer != null) withTyler += 1;
       assert.ok(c.id && c.question);
       assert.ok(
         ["essay", "synthetic", "visitor", "linkedin", "reading"].includes(c.source),
         c.source,
       );
     }
-    assert.ok(bySource.essay >= 50, `essay pairs ${bySource.essay}`);
-    assert.ok(bySource.synthetic >= 100, `synthetic ${bySource.synthetic}`);
-    assert.ok(bySource.reading >= 9, `reading cases ${bySource.reading}`);
-    assert.ok(withTyler >= 50, `with tyler_answer ${withTyler}`);
-    assert.ok(byCategory.agreement >= 50);
-    assert.ok(byCategory.grounded >= 20);
-    assert.ok(byCategory.refusal >= 10);
-    assert.ok(byCategory.prompt_injection >= 10);
-    assert.ok(byCategory.off_topic >= 10);
-    assert.ok(byCategory.voice_messy >= 10);
-    assert.ok(byCategory.reading_grounded >= 3);
-    assert.ok(byCategory.reading_tool_use >= 3);
-    assert.ok(byCategory.reading_resume >= 3);
 
     const rows = load.toEvalRows(cases);
     assert.equal(rows.length, cases.length);
     assert.equal(rows[0].tags.includes(cases[0].source), true);
   });
 
-  test("essay fixtures have bodies and never the banned voice id", () => {
+  test("essay fixtures (when present) never include the banned voice id", () => {
     const essays = load.loadEssaysFixture();
-    assert.ok(essays.length >= 10);
     for (const e of essays) {
-      assert.ok(e.id && e.body && e.body.length > 40);
+      assert.ok(e.id && e.body);
       assert.equal(String(e.body).includes(BANNED_VOICE), false);
     }
     const workflow = fs.readFileSync(
@@ -112,24 +90,15 @@ describe("ask dataset load (~200 tagged cases)", () => {
     assert.match(workflow, /Never use voice id/);
   });
 
-  test("rebuild script is deterministic enough to keep case count stable", () => {
-    const before = load.loadCases().length;
-    execFileSync(process.execPath, ["scripts/build-ask-dataset.js"], {
-      cwd: ROOT,
-      stdio: "pipe",
-    });
-    const after = load.loadCases().length;
-    assert.equal(after, before);
-    const summary = JSON.parse(
-      fs.readFileSync(
-        path.join(ROOT, "evals/ask/dataset/summary.json"),
-        "utf8",
-      ),
+  test("ask root resolves under TINKER_PRIVATE_DIR", () => {
+    const root = load.askRoot();
+    assert.match(root, /evals[/\\]ask$/);
+    assert.ok(fs.existsSync(root));
+    // Public tip no longer ships the question bank.
+    assert.equal(
+      fs.existsSync(path.join(ROOT, "evals/ask/dataset/cases.jsonl")),
+      false,
     );
-    // summary covers cases.jsonl only; loadCases also merges legacy evals/ask/cases/
-    assert.ok(summary.cases >= 190);
-    assert.ok(summary.cases <= after);
-    assert.ok(summary.bySource.essay >= 50);
   });
 });
 

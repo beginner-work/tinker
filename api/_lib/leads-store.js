@@ -1196,18 +1196,36 @@ async function markDraftFailed({ id, userId, emailHint, actor, reason } = {}) {
 }
 // Per-user outreach-from defaults keyed by the owner's *sign-in* email.
 // Only applied when the setting is still empty so a saved value always wins.
-// Keep the Gmail key: it is account identity for seeding, not a public contact
-// string. The seeded public From address is tyler@lindowlabs.dev.
-const OUTREACH_FROM_DEFAULTS = {
-  "tyler.lindow@gmail.com": "tyler@lindowlabs.dev",
-};
+// Personal identity maps are private: set TINKER_OUTREACH_FROM_DEFAULTS_JSON
+// (JSON object) or $TINKER_PRIVATE_DIR/snippets/outreach-from-defaults.json.
+// Public default is empty so the open repo never ships personal Gmail keys.
+function loadOutreachFromDefaults() {
+  const fromEnv = String(process.env.TINKER_OUTREACH_FROM_DEFAULTS_JSON || "").trim();
+  if (fromEnv) {
+    try {
+      const parsed = JSON.parse(fromEnv);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    } catch {
+      /* ignore bad env */
+    }
+  }
+  try {
+    const { readPrivateJson } = require("./private-dir.js");
+    const pack = readPrivateJson(["snippets", "outreach-from-defaults.json"]);
+    if (pack && typeof pack === "object" && !Array.isArray(pack)) return pack;
+  } catch {
+    /* no private pack */
+  }
+  return {};
+}
 
 async function getOutreachSettings({ userId, emailHint }) {
   const owner = requireUserId(userId);
   assertAllowed(owner, emailHint);
   const settings = await readOutreachSettings(owner);
   const email = typeof emailHint === "string" ? emailHint.trim().toLowerCase() : "";
-  const seeded = email && OUTREACH_FROM_DEFAULTS[email];
+  const defaults = loadOutreachFromDefaults();
+  const seeded = email && defaults[email];
   if (seeded && !String(settings.defaultFromAddress || "").trim()) {
     return writeOutreachSettings(owner, { defaultFromAddress: seeded });
   }
