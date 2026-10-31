@@ -349,6 +349,137 @@ describe("GET/POST /api/context-model", () => {
   });
 });
 
+describe("tinker band threshold calibration (train only)", () => {
+  const {
+    calibrateDepthThresholds,
+    predictBandFromDepth,
+    confusionMatrix,
+    bandDistribution,
+  } = require("../evals/ednet-zpd/lib/calibrate-bands.js");
+  const { runTinkerBaseline } = require("../evals/ednet-zpd/lib/tinker-baseline.js");
+
+  test("calibrateDepthThresholds never reads held-out rows", () => {
+    const train = [
+      { depth: 0.05, band: "too_hard" },
+      { depth: 0.08, band: "too_hard" },
+      { depth: 0.2, band: "in_zpd" },
+      { depth: 0.22, band: "in_zpd" },
+      { depth: 0.6, band: "too_easy" },
+      { depth: 0.7, band: "too_easy" },
+    ];
+    const heldOut = [{ depth: 0.99, band: "too_hard" }]; // would poison cuts if fitted
+    const fit = calibrateDepthThresholds(train);
+    assert.equal(fit.method, "train-depth-cuts");
+    assert.ok(fit.lo < fit.hi);
+    // Held-out must not affect cuts: refit without it is identical.
+    const again = calibrateDepthThresholds(train.concat([]));
+    assert.equal(fit.lo, again.lo);
+    assert.equal(fit.hi, again.hi);
+    // Predicting held-out with train cuts is allowed; fitting on it is not.
+    assert.equal(typeof predictBandFromDepth(heldOut[0].depth, fit), "string");
+  });
+
+  test("runTinkerBaseline emits confusion + pred distribution", () => {
+    const {
+      loadSyntheticFixture,
+    } = require("../evals/ednet-zpd/lib/sample.js");
+    const { labelEvents } = require("../evals/ednet-zpd/lib/label.js");
+    const probes = labelEvents(loadSyntheticFixture(), { minHistory: 2 });
+    assert.ok(probes.length >= 3);
+    const train = probes.slice(0, Math.max(2, probes.length - 1));
+    const evalProbes = probes.slice(-1);
+    const run = runTinkerBaseline(evalProbes, { calibrateFrom: train });
+    assert.ok(run.thresholds);
+    assert.ok(run.confusion);
+    assert.ok(run.predDistribution);
+    assert.equal(
+      Object.values(bandDistribution(run.yPred)).reduce((a, b) => a + b, 0),
+      run.yPred.length,
+    );
+    const matrix = confusionMatrix(run.yTrue, run.yPred);
+    assert.ok(matrix.too_easy || matrix.in_zpd || matrix.too_hard);
+  });
+});
+
+describe("claude-client soft-skip + Anthropic fallback", () => {
+  const {
+    callClaudeMessages,
+    isClaudeAccessDenied,
+  } = require("../evals/lib/claude-client.js");
+
+  test("isClaudeAccessDenied matches gateway free-tier message", () => {
+    assert.equal(
+      isClaudeAccessDenied(
+        403,
+        "Free tier users do not have access to this model. Upgrade to paid credits",
+      ),
+      true,
+    );
+    assert.equal(isClaudeAccessDenied(402, "Payment required"), true);
+    assert.equal(isClaudeAccessDenied(500, "Internal error"), false);
+  });
+
+  test("gateway free-tier soft-skips when Anthropic key absent", async () => {
+    const fetchFn = async () => ({
+      ok: false,
+      status: 403,
+      json: async () => ({
+        error: {
+          message:
+            "Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/...",
+        },
+      }),
+    });
+    const result = await callClaudeMessages({
+      system: "sys",
+      user: "user",
+      env: { AI_GATEWAY_API_KEY: "gw-test" },
+      fetchFn,
+    });
+    assert.equal(result.skipped, true);
+    assert.match(result.reason, /Free tier/i);
+    assert.equal(result.provider, "ai-gateway");
+  });
+
+  test("gateway free-tier falls back to Anthropic when key present", async () => {
+    let calls = 0;
+    const fetchFn = async (url) => {
+      calls += 1;
+      if (String(url).includes("ai-gateway") || String(url).includes("vercel")) {
+        return {
+          ok: false,
+          status: 403,
+          json: async () => ({
+            error: { message: "Free tier users do not have access to this model" },
+          }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: "text", text: "in_zpd" }],
+        }),
+      };
+    };
+    const result = await callClaudeMessages({
+      system: "sys",
+      user: "user",
+      env: {
+        AI_GATEWAY_API_KEY: "gw-test",
+        ANTHROPIC_API_KEY: "sk-ant-test",
+        ASK_MODEL: "anthropic/claude-haiku-4-5-20251001",
+      },
+      fetchFn,
+    });
+    assert.equal(result.skipped, false);
+    assert.equal(result.text, "in_zpd");
+    assert.equal(result.provider, "anthropic");
+    assert.equal(result.fallbackFrom, "ai-gateway");
+    assert.ok(calls >= 2);
+  });
+});
+
 describe("docs + CI wiring", () => {
   test("CONTEXT_MODEL.md covers baseline loop without em dashes", () => {
     const md = fs.readFileSync(
@@ -367,15 +498,18 @@ describe("docs + CI wiring", () => {
       path.join(__dirname, "../.github/workflows/context-model-eval.yml"),
       "utf8",
     );
-    assert.match(yml, /ANTHROPIC_API_KEY/);
     assert.match(yml, /BRAINTRUST_API_KEY/);
     assert.match(yml, /AI_GATEWAY_API_KEY/);
     assert.match(yml, /typesafe-ai\/jev-1\.14\.0/);
+    assert.match(yml, /anthropic\/claude-haiku-4-5-20251001/);
     assert.match(yml, /skip_keyed/);
     assert.match(yml, /needs:\s*\[context-model-unit,\s*keyed-paths\]/);
     assert.match(yml, /check-baseline-regression/);
     assert.match(yml, /EVAL_BASELINE_TOLERANCE/);
     assert.match(yml, /packages\/context-model\//);
+    assert.match(yml, /free tier/i);
+    // Actions routes Claude via AI Gateway only — no Anthropic secret wiring.
+    assert.doesNotMatch(yml, /secrets\.ANTHROPIC_API_KEY/);
     assert.doesNotMatch(yml, /OPENROUTER_API_KEY/);
     assert.doesNotMatch(yml, /TYPESAFE_API_KEY/);
   });

@@ -90,6 +90,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Cache EdNet KT3 + Contents
+        uses: actions/cache@v4
+        with:
+          path: evals/ednet-zpd/.cache
+          key: ednet-kt3-contents-v1
+
+      - name: Download EdNet when cache miss
+        run: |
+          if [ -d evals/ednet-zpd/.cache/kt3 ] && [ -d evals/ednet-zpd/.cache/contents ]; then
+            echo "EdNet cache hit"
+          else
+            python3 -m pip install --user gdown
+            node evals/ednet-zpd/download.js
+          fi
+
       - name: Snapshot committed experiment log (regression baseline)
         run: |
           cp evals/experiment-log/experiments.jsonl /tmp/experiments-baseline.jsonl
@@ -99,8 +114,8 @@ jobs:
         run: node evals/ednet-zpd/run.js
         env:
           EDNET_SAMPLE_SEED: "42"
-          EDNET_SAMPLE_USERS: "40"
-          EDNET_SAMPLE_EVENTS: "400"
+          EDNET_SAMPLE_USERS: "200"
+          EDNET_SAMPLE_EVENTS: "1500"
           EVAL_SPLIT: dev
           EVAL_SPLIT_SEED: "42"
           TINKER_EVAL_CONFIG_VERSION: v0
@@ -144,6 +159,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Cache EdNet KT3 + Contents
+        uses: actions/cache@v4
+        with:
+          path: evals/ednet-zpd/.cache
+          key: ednet-kt3-contents-v1
+
+      - name: Download EdNet when cache miss
+        run: |
+          if [ -d evals/ednet-zpd/.cache/kt3 ] && [ -d evals/ednet-zpd/.cache/contents ]; then
+            echo "EdNet cache hit"
+          else
+            python3 -m pip install --user gdown
+            node evals/ednet-zpd/download.js
+          fi
+
       - name: Snapshot committed experiment log (regression baseline)
         run: cp evals/experiment-log/experiments.jsonl /tmp/experiments-baseline.jsonl
 
@@ -151,23 +181,19 @@ jobs:
         id: secrets
         env:
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
         run: |
           missing=()
-          # Jev requires AI Gateway (no OpenRouter / TypeSafe direct).
+          # Jev + Claude both route via Vercel AI Gateway only in Actions.
+          # ANTHROPIC_API_KEY is not used here (not in repo secrets).
           if [ -z "$AI_GATEWAY_API_KEY" ]; then
             missing+=("AI_GATEWAY_API_KEY");
-          fi
-          # Claude routes via gateway when AI_GATEWAY_API_KEY is set; else needs Anthropic.
-          if [ -z "$AI_GATEWAY_API_KEY" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-            missing+=("ANTHROPIC_API_KEY");
           fi
           if [ -z "$BRAINTRUST_API_KEY" ]; then
             missing+=("BRAINTRUST_API_KEY");
           fi
 
-          # Keyed model calls can run with gateway alone; Braintrust is optional logging.
+          # Keyed model calls need AI Gateway; Braintrust is optional logging.
           if [ -z "$AI_GATEWAY_API_KEY" ]; then
             echo "skip_keyed=true" >> "$GITHUB_OUTPUT"
           else
@@ -187,16 +213,26 @@ jobs:
               if [ -z "$AI_GATEWAY_API_KEY" ]; then
                 echo "Keyed Jev/Claude **skipped**: \`AI_GATEWAY_API_KEY\` is not set in GitHub Actions secrets."
               else
-                echo "Keyed Jev/Claude will run via AI Gateway."
+                echo "Keyed Jev/Claude will run via AI Gateway (\`anthropic/claude-*\` + \`typesafe-ai/jev\`)."
+                echo ""
+                echo "Note: AI Gateway **free tier** cannot call some models. If runs soft-skip with"
+                echo "\"Free tier users do not have access\", top up AI Gateway credits on the Vercel team."
+                echo "No scores are fabricated on skip. \`ANTHROPIC_API_KEY\` is not required in Actions."
               fi
               echo ""
               echo "Still missing (mirror from Vercel tinker **Production** only - never Preview):"
               for s in "${missing[@]}"; do echo "- \`$s\`"; done
               echo ""
+              echo "Required for keyed runs: \`AI_GATEWAY_API_KEY\` (+ \`BRAINTRUST_API_KEY\` for logging)."
               echo "Jev model: \`typesafe-ai/jev\` (evals pin \`typesafe-ai/jev-1.14.0\`)."
+              echo "Claude model: \`anthropic/claude-haiku-4-5-20251001\` via AI Gateway."
             } | tee /tmp/context-model-eval-secrets.md
           else
-            echo "All keyed secrets present." | tee /tmp/context-model-eval-secrets.md
+            {
+              echo "All keyed secrets present (\`AI_GATEWAY_API_KEY\`, \`BRAINTRUST_API_KEY\`)."
+              echo "Claude + Jev route through AI Gateway only — no \`ANTHROPIC_API_KEY\` in Actions."
+              echo "Soft-skip on gateway access denial (no fabricated scores)."
+            } | tee /tmp/context-model-eval-secrets.md
           fi
 
       - name: Post secret status on PR
@@ -217,14 +253,18 @@ jobs:
         if: steps.secrets.outputs.skip_keyed != 'true'
         env:
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          # Claude Messages via AI Gateway (anthropic/claude-*); no ANTHROPIC_API_KEY.
           ASK_MODEL: anthropic/claude-haiku-4-5-20251001
           JEV_EVAL_PIN: "1"
           JEV_MODEL: typesafe-ai/jev-1.14.0
           EVAL_SPLIT: dev
           EVAL_SPLIT_SEED: "42"
           TINKER_EVAL_CONFIG_VERSION: v0
+          EDNET_SAMPLE_SEED: "42"
+          EDNET_SAMPLE_USERS: "200"
+          EDNET_SAMPLE_EVENTS: "1500"
+          EVAL_KEYED_LIMIT: "40"
         run: |
           node evals/ednet-zpd/run.js
           node evals/source-zpd/run.js
@@ -255,7 +295,6 @@ jobs:
           terminate_on_failure: false
           report_scores: TinkerBandMatch,BktBandMatch,TinkerHit,ClaudeHit
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           ASK_MODEL: anthropic/claude-haiku-4-5-20251001
           JEV_EVAL_PIN: "1"

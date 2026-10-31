@@ -2,7 +2,7 @@
 /* Offline + keyed EdNet ZPD benchmark entrypoint.
  *
  * Always runs Tinker + BKT on the seeded sample (synthetic fixture if
- * EdNet is not downloaded). Claude runs only with ANTHROPIC_API_KEY.
+ * EdNet is not downloaded). Claude runs via AI Gateway (or local Anthropic).
  * Braintrust logging only with BRAINTRUST_API_KEY.
  */
 

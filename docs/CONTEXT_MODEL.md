@@ -88,7 +88,7 @@ npm run eval:ednet-zpd             # default: dev split, v0 baseline
 EVAL_SPLIT=test npm run eval:ednet-zpd:test   # rare held-out
 ```
 
-Fixed sample: seed `42`, 40 users, 400 events/user (`SAMPLE.md`). Synthetic
+Fixed sample: seed `42`, 200 users, 1500 events/user (`SAMPLE.md`). Synthetic
 fixture used when cache is empty.
 
 Ground truth: correct unaided → `too_easy`; wrong then correct after
@@ -118,10 +118,12 @@ npm run eval:ednet-zpd
 npm run eval:source-zpd
 ```
 
-Optional secrets (GitHub Actions + local): `AI_GATEWAY_API_KEY` (required for
-Jev; also routes Claude), `ANTHROPIC_API_KEY` (Claude direct fallback),
-`BRAINTRUST_API_KEY`. On Vercel deploys, `VERCEL_OIDC_TOKEN` can replace the
-gateway API key. Mirror from Vercel **Production** only - never Preview.
+GitHub Actions keyed evals need only `AI_GATEWAY_API_KEY` (Jev + Claude via
+`anthropic/claude-*` on the gateway) and `BRAINTRUST_API_KEY` (logging).
+`ANTHROPIC_API_KEY` is not wired in Actions. Locally, an Anthropic key remains
+an optional Claude fallback if the gateway is unset. On Vercel deploys,
+`VERCEL_OIDC_TOKEN` can replace the gateway API key. Mirror from Vercel
+**Production** only - never Preview.
 
 Workflow: `.github/workflows/context-model-eval.yml`.
 

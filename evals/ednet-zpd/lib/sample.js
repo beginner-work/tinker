@@ -22,8 +22,9 @@ function mulberry32(seed) {
 function sampleConfig() {
   return {
     seed: Number(process.env.EDNET_SAMPLE_SEED || 42),
-    maxUsers: Number(process.env.EDNET_SAMPLE_USERS || 40),
-    maxEvents: Number(process.env.EDNET_SAMPLE_EVENTS || 400),
+    // Default large enough that the 20% dev split is well beyond ~100 probes.
+    maxUsers: Number(process.env.EDNET_SAMPLE_USERS || 200),
+    maxEvents: Number(process.env.EDNET_SAMPLE_EVENTS || 1500),
   };
 }
 

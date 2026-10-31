@@ -57,8 +57,19 @@ async function runEdnetZpd(opts) {
   const trainProbes = splits.train || [];
 
   const keyedLimit =
-    (opts && opts.claudeLimit) || Math.min(30, probes.length);
-  const tinker = runTinkerBaseline(probes);
+    (opts && opts.claudeLimit) ||
+    Math.min(
+      Number(env.EVAL_KEYED_LIMIT || 30) || 30,
+      probes.length,
+    );
+  // Calibrate depth→band cuts on train only (never fit on the eval split).
+  const tinker = runTinkerBaseline(probes, { calibrateFrom: trainProbes });
+  if (tinker.diagnostics) {
+    console.error(tinker.diagnostics);
+    console.error(
+      `[tinker] thresholds lo=${tinker.thresholds.lo} hi=${tinker.thresholds.hi} method=${tinker.thresholds.method}`,
+    );
+  }
   const bkt = runBktBaseline(probes);
   const claude = await runClaudeBaseline(probes, {
     env,
@@ -106,8 +117,15 @@ async function runEdnetZpd(opts) {
     classical = fitAndScore(trainRows, evalRows, { epochs: 40 });
   }
 
+  const tinkerSummary = {
+    ...summarize("tinker-context-model", tinker),
+    thresholds: tinker.thresholds || null,
+    confusion: tinker.confusion || null,
+    trueDistribution: tinker.trueDistribution || null,
+    predDistribution: tinker.predDistribution || null,
+  };
   const baselines = {
-    tinker: summarize("tinker-context-model", tinker),
+    tinker: tinkerSummary,
     bkt: summarize("bkt", { ...bkt, skipped: false }),
     claude: summarize("claude-band", claude),
     jevClaude: summarize("jev+claude", jevClaude),

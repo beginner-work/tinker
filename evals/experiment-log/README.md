@@ -15,7 +15,9 @@ Each iteration of the baseline loop appends one JSON line to
 `test-eval-count.json` mirrors the count. **Do not** evaluate test during
 normal tuning. Use `EVAL_SPLIT=test` or `--test` deliberately.
 
-Train is for fitting optional downstream models only; the loop reads **dev**.
+Train is for fitting optional downstream models only (including Tinker
+depth→band cut calibration); the loop scores **dev**. Never fit thresholds
+on test.
 
 ## CI regression gate
 
