@@ -531,3 +531,89 @@ model EvalRun {
   @@index([project, createdAt])
 }
 
+// --- Context model (concept graph + per-user depth/confidence) ---
+
+// A node in the shared concept graph. slug is stable for evals and URLs.
+model Concept {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String   @default("")
+  tags        Json     @default("[]")
+  targetDepth Float    @default(0.5)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  edgesFrom ConceptEdge[]       @relation("ConceptEdgeFrom")
+  edgesTo   ConceptEdge[]       @relation("ConceptEdgeTo")
+  beliefs   UserConceptBelief[]
+  signals   ContextSignalConcept[]
+
+  @@index([updatedAt])
+}
+
+// prerequisite: fromId must precede toId; related: undirected affinity.
+model ConceptEdge {
+  id        String   @id @default(cuid())
+  fromId    String
+  toId      String
+  type      String
+  weight    Float    @default(1)
+  createdAt DateTime @default(now())
+
+  from Concept @relation("ConceptEdgeFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to   Concept @relation("ConceptEdgeTo", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@unique([fromId, toId, type])
+  @@index([fromId])
+  @@index([toId])
+  @@index([type])
+}
+
+// Per-user depth + confidence on a concept (the core context-model state).
+model UserConceptBelief {
+  id            String   @id @default(cuid())
+  userId        String
+  conceptId     String
+  depth         Float    @default(0)
+  confidence    Float    @default(0.1)
+  evidenceCount Int      @default(0)
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conceptId])
+  @@index([userId])
+  @@index([userId, updatedAt])
+}
+
+// Append-only signal log. payload holds type-specific fields; never secrets.
+model ContextSignal {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  sessionId String   @default("")
+  sourceId  String   @default("")
+  payload   Json     @default("{}")
+  at        DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  concepts ContextSignalConcept[]
+
+  @@index([userId, at])
+  @@index([userId, type, at])
+  @@index([sessionId])
+}
+
+model ContextSignalConcept {
+  signalId  String
+  conceptId String
+
+  signal  ContextSignal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  concept Concept       @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@id([signalId, conceptId])
+  @@index([conceptId])
+}
+

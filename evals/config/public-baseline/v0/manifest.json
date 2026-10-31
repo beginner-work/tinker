@@ -1,0 +1,12 @@
+{
+  "version": "v0",
+  "kind": "baseline",
+  "agentModeling": false,
+  "notes": "Public baseline: Jev + Claude with no agent modeling. Tuned forks go under evals/private-config/ or TINKER_EVAL_CONFIG_DIR.",
+  "files": {
+    "jevDepthScore": "jev-depth-score.json",
+    "jevSourceNoul": "jev-source-noul.json",
+    "claudeZpdBand": "claude-zpd-band.json",
+    "claudeSourcePick": "claude-source-pick.json"
+  }
+}

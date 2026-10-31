@@ -1,0 +1,144 @@
+name: Context model evals (EdNet ZPD + source ZPD)
+
+# Runs next to the ask eval gate. Offline graph/BKT/label logic always runs.
+# Keyed baselines (Claude / Jev / Braintrust logging) skip cleanly when secrets
+# are missing; never fabricates scores.
+# Full `npm test` (incl. SDK) stays in the main CI workflow.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  context-model-unit:
+    name: Context model unit tests (no keys)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Context-model package tests
+        run: npm test --prefix packages/context-model
+
+      - name: Context-model API + eval offline tests
+        run: node --test tests/context-model.test.js
+
+  context-model-eval:
+    name: EdNet + source ZPD evals
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Offline EdNet ZPD (dev split, v0 baseline)
+        run: node evals/ednet-zpd/run.js
+        env:
+          EDNET_SAMPLE_SEED: "42"
+          EDNET_SAMPLE_USERS: "40"
+          EDNET_SAMPLE_EVENTS: "400"
+          EVAL_SPLIT: dev
+          EVAL_SPLIT_SEED: "42"
+          TINKER_EVAL_CONFIG_VERSION: v0
+
+      - name: Offline source ZPD (dev split, internal)
+        run: node evals/source-zpd/run.js
+        env:
+          EVAL_SPLIT: dev
+          EVAL_SPLIT_SEED: "42"
+          TINKER_EVAL_CONFIG_VERSION: v0
+
+      - name: Check optional secrets
+        id: secrets
+        env:
+          BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: |
+          missing=()
+          if [ -z "$BRAINTRUST_API_KEY" ]; then missing+=("BRAINTRUST_API_KEY"); fi
+          if [ -z "$ANTHROPIC_API_KEY" ]; then missing+=("ANTHROPIC_API_KEY"); fi
+          if [ -z "$OPENROUTER_API_KEY" ] && [ -z "$TYPESAFE_API_KEY" ]; then
+            missing+=("OPENROUTER_API_KEY|TYPESAFE_API_KEY");
+          fi
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "skip_keyed=true" >> "$GITHUB_OUTPUT"
+            echo "missing=${missing[*]}" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Context-model keyed evals skipped — missing secrets"
+              echo ""
+              echo "Offline Tinker/BKT/label/source-local runs completed. No scores were fabricated for keyed baselines."
+              echo ""
+              echo "Add these GitHub Actions secrets for full Claude / Jev / Braintrust logging:"
+              for s in "${missing[@]}"; do echo "- \`$s\`"; done
+            } | tee /tmp/context-model-eval-skip.md
+            exit 0
+          fi
+          echo "skip_keyed=false" >> "$GITHUB_OUTPUT"
+
+      - name: Post skip comment on PR
+        if: steps.secrets.outputs.skip_keyed == 'true' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/context-model-eval-skip.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Keyed EdNet + source runs + Braintrust
+        if: steps.secrets.outputs.skip_keyed != 'true'
+        env:
+          BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          ASK_MODEL: claude-haiku-4-5-20251001
+        run: |
+          node evals/ednet-zpd/run.js
+          node evals/source-zpd/run.js
+
+      - name: Braintrust eval-action (ednet + source)
+        if: steps.secrets.outputs.skip_keyed != 'true'
+        uses: braintrustdata/eval-action@v2
+        with:
+          api_key: ${{ secrets.BRAINTRUST_API_KEY }}
+          runtime: node
+          root: .
+          paths: |
+            evals/ednet-zpd
+            evals/source-zpd
+          package_manager: npm
+          use_proxy: false
+          terminate_on_failure: false
+          report_scores: TinkerBandMatch,BktBandMatch,TinkerHit,ClaudeHit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          ASK_MODEL: claude-haiku-4-5-20251001

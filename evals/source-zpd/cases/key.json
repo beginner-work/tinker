@@ -1,0 +1,11 @@
+{
+  "internal": true,
+  "description": "Hidden in-band source id(s) per case. INTERNAL ONLY.",
+  "keys": {
+    "src-01-single-session-bayes": ["src-bayes-worked"],
+    "src-02-single-session-sql": ["src-sql-window-intro"],
+    "src-03-multi-session-growth": ["src-http-caching"],
+    "src-04-multi-session-skip": ["src-functors-from-functions"],
+    "src-05-single-gradients": ["src-backprop-by-hand"]
+  }
+}

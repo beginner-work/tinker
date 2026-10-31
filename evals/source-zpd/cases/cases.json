@@ -1,0 +1,251 @@
+{
+  "internal": true,
+  "description": "INTERNAL source-recommendation ZPD cases. Hidden in-band source ids live under key.json (also internal). Do not publish as external benchmark scores.",
+  "cases": [
+    {
+      "id": "src-01-single-session-bayes",
+      "multiSession": false,
+      "honestStatement": "I know basic probability (coins, dice) but Bayes rule still confuses me when I try to update beliefs.",
+      "learnerDepthByConcept": {
+        "probability": 0.7,
+        "bayes": 0.25,
+        "markov": 0.1
+      },
+      "sources": [
+        {
+          "id": "src-prob-review",
+          "title": "Quick probability refresh",
+          "conceptIds": ["probability"],
+          "depth": 0.35,
+          "summary": "Elementary probability identities."
+        },
+        {
+          "id": "src-bayes-worked",
+          "title": "Bayes rule with worked medical-test examples",
+          "conceptIds": ["bayes", "probability"],
+          "depth": 0.4,
+          "summary": "Walks through prior, likelihood, posterior with scaffolding."
+        },
+        {
+          "id": "src-markov-advanced",
+          "title": "Ergodicity of Markov chains",
+          "conceptIds": ["markov"],
+          "depth": 0.9,
+          "summary": "Measure-theoretic ergodic theorems."
+        }
+      ]
+    },
+    {
+      "id": "src-02-single-session-sql",
+      "multiSession": false,
+      "honestStatement": "I write SELECT and JOIN confidently. Window functions still feel shaky.",
+      "learnerDepthByConcept": {
+        "sql-select": 0.85,
+        "sql-join": 0.8,
+        "sql-window": 0.3
+      },
+      "sources": [
+        {
+          "id": "src-sql-select-basics",
+          "title": "SELECT star tutorial",
+          "conceptIds": ["sql-select"],
+          "depth": 0.2,
+          "summary": "Absolute beginner SELECT."
+        },
+        {
+          "id": "src-sql-window-intro",
+          "title": "Window functions: ROW_NUMBER and running totals",
+          "conceptIds": ["sql-window", "sql-select"],
+          "depth": 0.45,
+          "summary": "Just past join fluency; introduces partitions."
+        },
+        {
+          "id": "src-sql-optimizer",
+          "title": "Query planner internals",
+          "conceptIds": ["sql-window"],
+          "depth": 0.95,
+          "summary": "Cost models and statistics."
+        }
+      ]
+    },
+    {
+      "id": "src-03-multi-session-growth",
+      "multiSession": true,
+      "sessions": [
+        {
+          "honestStatement": "I have heard of HTTP status codes but I guess a lot.",
+          "signals": [
+            {
+              "type": "honest_statement",
+              "text": "I have heard of HTTP status codes but I guess a lot.",
+              "conceptIds": ["http"]
+            },
+            {
+              "type": "response",
+              "conceptIds": ["http"],
+              "correct": false,
+              "aided": false
+            },
+            {
+              "type": "reading",
+              "conceptIds": ["http"],
+              "sourceId": "src-http-intro"
+            },
+            {
+              "type": "response",
+              "conceptIds": ["http"],
+              "correct": true,
+              "aided": true
+            }
+          ]
+        },
+        {
+          "honestStatement": "After the intro, 4xx vs 5xx is clearer. Caching headers still confuse me.",
+          "signals": [
+            {
+              "type": "honest_statement",
+              "text": "4xx vs 5xx is clearer. Caching headers still confuse me.",
+              "conceptIds": ["http", "http-caching"]
+            },
+            {
+              "type": "ask",
+              "conceptIds": ["http-caching"],
+              "sourceId": null
+            }
+          ]
+        }
+      ],
+      "learnerDepthByConcept": {
+        "http": 0.55,
+        "http-caching": 0.25
+      },
+      "sources": [
+        {
+          "id": "src-http-intro",
+          "title": "HTTP status codes 101",
+          "conceptIds": ["http"],
+          "depth": 0.25,
+          "summary": "Now too easy after session 1."
+        },
+        {
+          "id": "src-http-caching",
+          "title": "Cache-Control and ETag without the pain",
+          "conceptIds": ["http-caching", "http"],
+          "depth": 0.45,
+          "summary": "In band after session 2."
+        },
+        {
+          "id": "src-http2-push",
+          "title": "HTTP/2 server push deep dive",
+          "conceptIds": ["http"],
+          "depth": 0.9,
+          "summary": "Too hard."
+        }
+      ]
+    },
+    {
+      "id": "src-04-multi-session-skip",
+      "multiSession": true,
+      "sessions": [
+        {
+          "honestStatement": "I tried a category-theory primer and bounced.",
+          "signals": [
+            {
+              "type": "honest_statement",
+              "text": "I tried a category-theory primer and bounced.",
+              "conceptIds": ["category-theory"]
+            },
+            {
+              "type": "skip",
+              "conceptIds": ["category-theory"],
+              "sourceId": "src-ct-primer"
+            },
+            {
+              "type": "response",
+              "conceptIds": ["functions"],
+              "correct": true,
+              "aided": false
+            },
+            {
+              "type": "response",
+              "conceptIds": ["functions"],
+              "correct": true,
+              "aided": false
+            }
+          ]
+        },
+        {
+          "honestStatement": "I am solid on plain functions; functors still feel abstract.",
+          "signals": [
+            {
+              "type": "honest_statement",
+              "text": "Solid on plain functions; functors still feel abstract.",
+              "conceptIds": ["functions", "functors"]
+            }
+          ]
+        }
+      ],
+      "learnerDepthByConcept": {
+        "functions": 0.75,
+        "functors": 0.3,
+        "category-theory": 0.1
+      },
+      "sources": [
+        {
+          "id": "src-ct-primer",
+          "title": "Category theory primer",
+          "conceptIds": ["category-theory"],
+          "depth": 0.7,
+          "summary": "Too hard; already skipped."
+        },
+        {
+          "id": "src-functors-from-functions",
+          "title": "Functors starting from everyday functions",
+          "conceptIds": ["functors", "functions"],
+          "depth": 0.45,
+          "summary": "In band."
+        },
+        {
+          "id": "src-functions-basics",
+          "title": "What is a function?",
+          "conceptIds": ["functions"],
+          "depth": 0.15,
+          "summary": "Too easy."
+        }
+      ]
+    },
+    {
+      "id": "src-05-single-gradients",
+      "multiSession": false,
+      "honestStatement": "I can train a tiny neural net with a library. I cannot derive backprop on paper.",
+      "learnerDepthByConcept": {
+        "nn-api": 0.7,
+        "backprop": 0.2,
+        "diffgeo": 0.05
+      },
+      "sources": [
+        {
+          "id": "src-keras-fit",
+          "title": "model.fit cheat sheet",
+          "conceptIds": ["nn-api"],
+          "depth": 0.3,
+          "summary": "Too easy."
+        },
+        {
+          "id": "src-backprop-by-hand",
+          "title": "Backprop on a two-layer net by hand",
+          "conceptIds": ["backprop", "nn-api"],
+          "depth": 0.4,
+          "summary": "In band."
+        },
+        {
+          "id": "src-diffgeo-ml",
+          "title": "Information geometry for optimizers",
+          "conceptIds": ["diffgeo"],
+          "depth": 0.95,
+          "summary": "Too hard."
+        }
+      ]
+    }
+  ]
+}

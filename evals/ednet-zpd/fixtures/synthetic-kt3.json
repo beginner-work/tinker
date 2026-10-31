@@ -1,0 +1,117 @@
+{
+  "description": "INTERNAL synthetic KT3-like events for offline labeling/BKT/Tinker tests. Not EdNet.",
+  "events": [
+    {
+      "userId": "syn1",
+      "timestamp": 1000,
+      "action_type": "respond",
+      "item_id": "q1",
+      "tags": ["fractions"],
+      "correct": false
+    },
+    {
+      "userId": "syn1",
+      "timestamp": 1100,
+      "action_type": "respond",
+      "item_id": "q2",
+      "tags": ["fractions"],
+      "correct": false
+    },
+    {
+      "userId": "syn1",
+      "timestamp": 1200,
+      "action_type": "lecture",
+      "item_id": "l1",
+      "tags": ["fractions"],
+      "correct": null
+    },
+    {
+      "userId": "syn1",
+      "timestamp": 1300,
+      "action_type": "respond",
+      "item_id": "q3",
+      "tags": ["fractions"],
+      "correct": true
+    },
+    {
+      "userId": "syn1",
+      "timestamp": 1400,
+      "action_type": "respond",
+      "item_id": "q4",
+      "tags": ["fractions"],
+      "correct": true
+    },
+    {
+      "userId": "syn1",
+      "timestamp": 1500,
+      "action_type": "respond",
+      "item_id": "q5",
+      "tags": ["geometry"],
+      "correct": true
+    },
+    {
+      "userId": "syn1",
+      "timestamp": 1600,
+      "action_type": "respond",
+      "item_id": "q6",
+      "tags": ["geometry"],
+      "correct": true
+    },
+    {
+      "userId": "syn1",
+      "timestamp": 1700,
+      "action_type": "respond",
+      "item_id": "q7",
+      "tags": ["geometry"],
+      "correct": true
+    },
+    {
+      "userId": "syn2",
+      "timestamp": 2000,
+      "action_type": "respond",
+      "item_id": "q1",
+      "tags": ["algebra"],
+      "correct": false
+    },
+    {
+      "userId": "syn2",
+      "timestamp": 2100,
+      "action_type": "respond",
+      "item_id": "q2",
+      "tags": ["algebra"],
+      "correct": false
+    },
+    {
+      "userId": "syn2",
+      "timestamp": 2200,
+      "action_type": "explanation",
+      "item_id": "e1",
+      "tags": ["algebra"],
+      "correct": null
+    },
+    {
+      "userId": "syn2",
+      "timestamp": 2300,
+      "action_type": "respond",
+      "item_id": "q3",
+      "tags": ["algebra"],
+      "correct": false
+    },
+    {
+      "userId": "syn2",
+      "timestamp": 2400,
+      "action_type": "respond",
+      "item_id": "q4",
+      "tags": ["algebra"],
+      "correct": false
+    },
+    {
+      "userId": "syn2",
+      "timestamp": 2500,
+      "action_type": "respond",
+      "item_id": "q5",
+      "tags": ["algebra"],
+      "correct": false
+    }
+  ]
+}
