@@ -69,6 +69,7 @@ Reporter("tinker-ask-gate", {
     let tylerAgreementAvg: number | null = null;
     let casePassAvg: number | null = null;
     let experimentUrl: string | null = null;
+    let caseCount = 0;
 
     for (const r of reports as Array<{
       tylerAgreementAvg: number | null;
@@ -86,6 +87,7 @@ Reporter("tinker-ask-gate", {
       for (const n of r.latencies || []) {
         if (Number.isFinite(n)) allLatencies.push(n);
       }
+      caseCount += (r.latencies || []).length;
     }
 
     allLatencies.sort((a, b) => a - b);
@@ -134,6 +136,67 @@ Reporter("tinker-ask-gate", {
       }
     }
 
+    // Durable resume metric: POST latest pass rate to Production
+    // /api/metrics (see RESUME_METRICS.md). Best-effort; never flips
+    // the gate outcome. Production-only token — never Preview.
+    const passRate =
+      typeof report.tylerAgreementAvg === "number"
+        ? report.tylerAgreementAvg
+        : typeof report.casePassAvg === "number"
+          ? report.casePassAvg
+          : null;
+    void persistEvalRunToMetricsApi({
+      passRate,
+      caseCount: caseCount || report.latency_ms.n || 0,
+      experimentUrl: report.experimentUrl,
+      report,
+      ok: report.ok,
+    });
+
     return failures.length === 0;
   },
 });
+
+async function persistEvalRunToMetricsApi(payload: {
+  passRate: number | null;
+  caseCount: number;
+  experimentUrl: string | null;
+  report: GateReport;
+  ok: boolean;
+}): Promise<void> {
+  const token = String(process.env.TINKER_SERVICE_TOKEN || "").trim();
+  if (!token || payload.passRate == null) return;
+  const base = String(
+    process.env.METRICS_BASE_URL || "https://tinker.beginner.work",
+  ).replace(/\/$/, "");
+  try {
+    const res = await fetch(`${base}/api/metrics?action=record_eval`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-Tinker-Caller": "ask-eval-gate",
+      },
+      body: JSON.stringify({
+        project: "tinker-ask",
+        passRate: payload.passRate,
+        caseCount: payload.caseCount,
+        passedCount: payload.ok ? payload.caseCount : undefined,
+        experimentUrl: payload.experimentUrl || "",
+        report: payload.report,
+      }),
+    });
+    if (!res.ok) {
+      console.error(
+        "[ask-eval-gate] record_eval failed",
+        res.status,
+        await res.text().catch(() => ""),
+      );
+    }
+  } catch (err) {
+    console.error(
+      "[ask-eval-gate] record_eval error",
+      err instanceof Error ? err.message : err,
+    );
+  }
+}

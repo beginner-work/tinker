@@ -412,7 +412,7 @@ async function ensureSessionText(sessionRow, { fetchPageFn } = {}) {
   return { text: page.text, links };
 }
 
-async function createSession(prismaClient, { url, caller, fetchPageFn }) {
+async function createSession(prismaClient, { url, caller, fetchPageFn, anonymousId, isOwner, embedHost }) {
   const page = await (fetchPageFn || fetchPage)(url);
   const id = newSessionId();
   const voiceId = readingVoiceId();
@@ -431,6 +431,10 @@ async function createSession(prismaClient, { url, caller, fetchPageFn }) {
     links: page.links || [],
     resumeWordIndex: 0,
     voiceId,
+    anonymousId: String(anonymousId || "").slice(0, 80),
+    isOwner: Boolean(isOwner),
+    embedHost: String(embedHost || "").slice(0, 200),
+    questionCount: 0,
   };
 
   if (prismaClient && typeof prismaClient.readingSession?.create === "function") {
@@ -522,11 +526,27 @@ async function logQuestion(prismaClient, row) {
         sourceUrl: row.sourceUrl || "",
         companyHost: row.companyHost || "",
         error: row.error || "",
+        anonymousId: row.anonymousId || "",
+        isOwner: Boolean(row.isOwner),
       },
     });
   } catch (err) {
     console.error("[reading] failed to persist ReadingQuestion", err && err.message);
     return null;
+  }
+}
+
+async function bumpSessionQuestionCount(prismaClient, sessionId) {
+  if (!prismaClient || typeof prismaClient.readingSession?.update !== "function") {
+    return;
+  }
+  try {
+    await prismaClient.readingSession.update({
+      where: { id: sessionId },
+      data: { questionCount: { increment: 1 } },
+    });
+  } catch (err) {
+    console.error("[reading] failed to bump questionCount", err && err.message);
   }
 }
 
@@ -544,6 +564,8 @@ async function logClick(prismaClient, row) {
         href: row.href || "",
         sourceUrl: row.sourceUrl || "",
         companyHost: row.companyHost || "",
+        anonymousId: row.anonymousId || "",
+        isOwner: Boolean(row.isOwner),
       },
     });
   } catch (err) {
@@ -643,6 +665,7 @@ module.exports = {
   loadSession,
   updateResume,
   logQuestion,
+  bumpSessionQuestionCount,
   logClick,
   collectMetrics,
   fetchPage,

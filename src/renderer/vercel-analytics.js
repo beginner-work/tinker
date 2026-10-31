@@ -1,9 +1,14 @@
-/* Vercel Web Analytics — page views only (Hobby free tier).
+/* Vercel Web Analytics — page views for the main app shell.
  *
  * Loads /_vercel/insights/script.js which is the same endpoint
- * @vercel/analytics's inject() uses. We deliberately do NOT call track()
- * / custom events (those require Pro). Keystrokes and product events go
+ * @vercel/analytics's inject() uses. Product funnel + keystrokes still go
  * only to Tinker's first-party /api/analytics.
+ *
+ * Resume / reading-agent custom events (session_start, question_asked,
+ * sdk_loaded, answer_link_click) are emitted only through
+ * src/renderer/lib/metrics/client-track.js and api/_lib/metrics/emit.js.
+ * See RESUME_METRICS.md. Custom events need Web Analytics enabled on
+ * Production (and a plan tier that supports custom events).
  *
  * Skipped when DNT or Global Privacy Control is set. Harmless no-op on
  * non-Vercel hosts (script 404s silently).

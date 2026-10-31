@@ -33,6 +33,8 @@ const defaultPrisma = require("./_lib/db.js");
 const stytch = require("./_lib/stytch.js");
 const reading = require("./_lib/reading-agent.js");
 const { readJsonBody } = require("./_lib/user-data.js");
+const metricsEmit = require("./_lib/metrics/emit.js");
+const resumeMetrics = require("./_lib/metrics/resume.js");
 
 function actionOf(req) {
   try {
@@ -56,11 +58,37 @@ function createHandler(deps) {
   const speakChunk = (deps && deps.speakChunk) || reading.speakChunk;
   const updateResume = (deps && deps.updateResume) || reading.updateResume;
   const logQuestion = (deps && deps.logQuestion) || reading.logQuestion;
+  const bumpSessionQuestionCount =
+    (deps && deps.bumpSessionQuestionCount) || reading.bumpSessionQuestionCount;
   const logClick = (deps && deps.logClick) || reading.logClick;
   const collectMetrics = (deps && deps.collectMetrics) || reading.collectMetrics;
+  const emitSessionStart =
+    (deps && deps.emitSessionStart) || metricsEmit.emitSessionStart;
+  const emitQuestionAsked =
+    (deps && deps.emitQuestionAsked) || metricsEmit.emitQuestionAsked;
+  const emitSdkLoaded = (deps && deps.emitSdkLoaded) || metricsEmit.emitSdkLoaded;
+  const emitAnswerLinkClick =
+    (deps && deps.emitAnswerLinkClick) || metricsEmit.emitAnswerLinkClick;
+  const recordEmbedHost =
+    (deps && deps.recordEmbedHost) || resumeMetrics.recordEmbedHost;
   const readBody = (deps && deps.readJsonBody) || readJsonBody;
   const chunkTextFromWord =
     (deps && deps.chunkTextFromWord) || reading.chunkTextFromWord;
+
+  function clientMeta(body) {
+    const anonymousId = resumeMetrics.normalizeAnonymousId(
+      body && (body.anonymousId || body.aid),
+    );
+    const isOwner = metricsEmit.isOwnerTraffic(
+      body && (body.owner === true || body.owner === "1" || body.isOwner)
+        ? true
+        : body && body.owner,
+    );
+    const embedHost = resumeMetrics.normalizeHost(
+      (body && (body.embedHost || body.host)) || "",
+    );
+    return { anonymousId, isOwner, embedHost };
+  }
 
   async function resolveStrongAuth(req) {
     const expected = reading.serviceToken();
@@ -151,11 +179,31 @@ function createHandler(deps) {
       res.status(400).json({ error: "url is required" });
       return;
     }
+    const meta = clientMeta(body);
     const started = Date.now();
     const created = await createSession(prisma, {
       url,
       caller: auth.caller,
+      anonymousId: meta.anonymousId,
+      isOwner: meta.isOwner,
+      embedHost: meta.embedHost,
     });
+    if (meta.embedHost) {
+      await recordEmbedHost(prisma, meta.embedHost);
+      await emitSdkLoaded(
+        { host: meta.embedHost, anonymousId: meta.anonymousId || "" },
+        { isOwner: meta.isOwner, headers: req.headers },
+      );
+    }
+    await emitSessionStart(
+      {
+        sessionId: created.sessionId,
+        anonymousId: meta.anonymousId || "",
+        sourceHost: created.companyHost || "",
+        host: meta.embedHost || "",
+      },
+      { isOwner: meta.isOwner, headers: req.headers },
+    );
     res.status(200).json({
       ...created,
       latencyMs: Date.now() - started,
@@ -284,6 +332,9 @@ function createHandler(deps) {
       wordIndex: session.resumeWordIndex || 0,
     };
     const rawTranscript = String(body.rawTranscript || "").trim().slice(0, 4000);
+    const meta = clientMeta(body);
+    const anonymousId = meta.anonymousId || session.anonymousId || "";
+    const isOwner = meta.isOwner || Boolean(session.isOwner);
 
     let answerText = "";
     let model = "";
@@ -340,7 +391,19 @@ function createHandler(deps) {
         position,
         sourceUrl: session.sourceUrl,
         companyHost: session.companyHost || "",
+        anonymousId,
+        isOwner,
       });
+      await bumpSessionQuestionCount(prisma, sessionId);
+      await emitQuestionAsked(
+        {
+          sessionId,
+          anonymousId: anonymousId || "",
+          input,
+          sourceHost: session.companyHost || "",
+        },
+        { isOwner, headers: req.headers },
+      );
 
       res.status(200).json({
         answerText,
@@ -383,6 +446,8 @@ function createHandler(deps) {
         position,
         sourceUrl: session.sourceUrl,
         companyHost: session.companyHost || "",
+        anonymousId,
+        isOwner,
         error: String(message).slice(0, 500),
       });
       res.status(status).json({ error: message, requestId });
@@ -417,6 +482,9 @@ function createHandler(deps) {
           : target === "source"
             ? session.sourceUrl
             : String(body.href || "");
+    const meta = clientMeta(body);
+    const anonymousId = meta.anonymousId || session.anonymousId || "";
+    const isOwner = meta.isOwner || Boolean(session.isOwner);
     await logClick(prisma, {
       sessionId,
       caller: auth.caller,
@@ -424,7 +492,20 @@ function createHandler(deps) {
       href,
       sourceUrl: session.sourceUrl,
       companyHost: session.companyHost || "",
+      anonymousId,
+      isOwner,
     });
+    if (["linkedin", "email", "source"].includes(target)) {
+      await emitAnswerLinkClick(
+        {
+          sessionId,
+          anonymousId: anonymousId || "",
+          target,
+          sourceHost: session.companyHost || "",
+        },
+        { isOwner, headers: req.headers },
+      );
+    }
     if (target === "resume" && body.wordIndex != null) {
       await updateResume(prisma, sessionId, body.wordIndex);
     }

@@ -37,6 +37,8 @@
       </form>
     </div>
     <div id="mount"></div>
+    <script src="/lib/metrics/events.js"></script>
+    <script src="/lib/metrics/client-track.js"></script>
     <script src="/reading-widget/widget.js"></script>
     <script>
       (function () {
@@ -44,6 +46,7 @@
         var url = params.get("url") || "";
         var embed = params.get("embed") === "1";
         var autoplay = params.get("autoplay") === "1";
+        var embedHost = params.get("embedHost") || "";
         if (embed) document.body.classList.add("rw-embed");
 
         var demo = document.getElementById("demo");
@@ -56,6 +59,7 @@
           window.TinkerReadingWidget.mount("#mount", {
             url: articleUrl,
             autoplay: autoplay,
+            embedHost: embedHost,
           });
         }
 

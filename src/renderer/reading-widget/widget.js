@@ -58,6 +58,10 @@
     return URL.createObjectURL(blob);
   }
 
+  function metricsClient() {
+    return global.tinkerMetricsClient || null;
+  }
+
   function ReadingWidget(root, opts) {
     this.root = root;
     this.opts = opts || {};
@@ -72,6 +76,19 @@
     this.audioEl = this.audio;
     this._objectUrl = null;
     this._bound = false;
+    this.metrics = null;
+    var mc = metricsClient();
+    if (mc && typeof mc.initReadingMetrics === "function") {
+      this.metrics = mc.initReadingMetrics({
+        embedHost: this.opts.embedHost || params().get("embedHost") || "",
+      });
+    } else {
+      this.metrics = {
+        anonymousId: "",
+        isOwner: params().get("owner") === "1",
+        host: this.opts.embedHost || params().get("embedHost") || "",
+      };
+    }
     this.render();
     this.bind();
     var url = this.opts.url || params().get("url") || "";
@@ -79,6 +96,15 @@
       this.startSession(url);
     }
   }
+
+  ReadingWidget.prototype.clientMeta = function () {
+    var m = this.metrics || {};
+    var out = {};
+    if (m.anonymousId) out.anonymousId = m.anonymousId;
+    if (m.isOwner) out.owner = "1";
+    if (m.host) out.embedHost = m.host;
+    return out;
+  };
 
   ReadingWidget.prototype.setStatus = function (text, tone) {
     var el = qs("[data-rw-status]", this.root);
@@ -177,9 +203,10 @@
     this.setStatus("Fetching article…", "busy");
     this.setButtons(false);
     try {
+      var body = Object.assign({ url: url }, this.clientMeta());
       var data = await postJson(
         endpoint(this.apiBase, "session"),
-        { url: url },
+        body,
         this.headers,
       );
       this.session = data;
@@ -198,6 +225,15 @@
         '" target="_blank" rel="noopener noreferrer">Open source</a>';
       var src = qs("[data-rw-source]", this.root);
       src.href = data.sourceUrl;
+      var mc = metricsClient();
+      if (mc && typeof mc.trackSessionStart === "function") {
+        mc.trackSessionStart({
+          sessionId: data.sessionId || "",
+          anonymousId: (this.metrics && this.metrics.anonymousId) || "",
+          sourceHost: data.companyHost || "",
+          host: (this.metrics && this.metrics.host) || "",
+        });
+      }
       this.setButtons(true);
       this.state = "ready";
       this.setStatus("Ready. Press Listen.");
@@ -299,14 +335,18 @@
     this.setStatus("Thinking…", "busy");
     qs("[data-rw-ask-send]", this.root).disabled = true;
     try {
-      var data = await postJson(
-        endpoint(this.apiBase, "ask"),
+      var askBody = Object.assign(
         {
           sessionId: this.session.sessionId,
           question: question,
           input: "typed",
           position: { wordIndex: this.wordIndex },
         },
+        this.clientMeta(),
+      );
+      var data = await postJson(
+        endpoint(this.apiBase, "ask"),
+        askBody,
         this.headers,
       );
       this.wordIndex =
@@ -317,6 +357,15 @@
       answerBox.classList.add("is-on");
       qs("[data-rw-question]", this.root).value = "";
       this.closeAsk();
+      var mc = metricsClient();
+      if (mc && typeof mc.trackQuestionAsked === "function") {
+        mc.trackQuestionAsked({
+          sessionId: this.session.sessionId,
+          anonymousId: (this.metrics && this.metrics.anonymousId) || "",
+          input: "typed",
+          sourceHost: data.companyHost || "",
+        });
+      }
       this.state = "answering";
       this.setStatus(
         data.fetchedSource
@@ -334,17 +383,29 @@
 
   ReadingWidget.prototype.logEvent = function (target) {
     if (!this.session) return;
-    postJson(
-      endpoint(this.apiBase, "event"),
+    var body = Object.assign(
       {
         sessionId: this.session.sessionId,
         target: target,
         wordIndex: this.wordIndex,
       },
-      this.headers,
-    ).catch(function () {
-      /* non-blocking */
-    });
+      this.clientMeta(),
+    );
+    postJson(endpoint(this.apiBase, "event"), body, this.headers).catch(
+      function () {
+        /* non-blocking */
+      },
+    );
+    if (["linkedin", "email", "source"].indexOf(target) !== -1) {
+      var mc = metricsClient();
+      if (mc && typeof mc.trackAnswerLinkClick === "function") {
+        mc.trackAnswerLinkClick({
+          sessionId: this.session.sessionId,
+          anonymousId: (this.metrics && this.metrics.anonymousId) || "",
+          target: target,
+        });
+      }
+    }
   };
 
   function mount(selectorOrEl, opts) {

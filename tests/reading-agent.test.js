@@ -257,7 +257,18 @@ describe("POST /api/reading route", () => {
         },
         async update({ where, data }) {
           const row = sessions.get(where.id);
-          Object.assign(row, data);
+          if (
+            data.questionCount &&
+            typeof data.questionCount === "object" &&
+            data.questionCount.increment
+          ) {
+            row.questionCount =
+              (row.questionCount || 0) + data.questionCount.increment;
+            const { questionCount: _qc, ...rest } = data;
+            Object.assign(row, rest);
+          } else {
+            Object.assign(row, data);
+          }
           return row;
         },
         async count() {

@@ -65,6 +65,13 @@
     if (articleUrl) q.set("url", articleUrl);
     if (autoplay) q.set("autoplay", "1");
     q.set("embed", "1");
+    // Parent hostname for resume SDK-embed metrics (iframe origin is Tinker).
+    try {
+      if (window.location && window.location.hostname) {
+        q.set("embedHost", String(window.location.hostname).toLowerCase());
+      }
+    } catch (e) { /* ignore */ }
+    if (attr("data-owner", "") === "1") q.set("owner", "1");
     iframe.src = origin + "/reading-widget/?" + q.toString();
     iframe.title = "Tinker reading agent";
     iframe.loading = "lazy";
@@ -98,10 +105,15 @@
     s.src = origin + "/reading-widget/widget.js";
     s.onload = function () {
       if (!window.TinkerReadingWidget) return;
+      var parentHost = "";
+      try {
+        parentHost = String(window.location.hostname || "").toLowerCase();
+      } catch (e) { /* ignore */ }
       window.TinkerReadingWidget.mount(host, {
         url: articleUrl,
         apiBase: proxyUrl.replace(/\/$/, ""),
         autoplay: autoplay,
+        embedHost: parentHost,
       });
     };
     document.body.appendChild(s);
