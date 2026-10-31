@@ -9,6 +9,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { EssayCursor } from "@/src/components/EssayCursor";
 import { SourceByline } from "@/src/components/SourceByline";
+import { SiteHeader } from "@/src/components/SiteHeader";
 import { TalkPlayerBar } from "@/src/components/TalkPlayerBar";
 import { AskPanel } from "@/src/components/AskPanel";
 import { useReadingSession } from "@/src/hooks/useReadingSession";
@@ -25,6 +26,7 @@ export default function ReadScreen() {
   }>();
   const reader = useReadingSession();
   const [askOpen, setAskOpen] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     const u = String(params.url || "").trim();
@@ -49,35 +51,45 @@ export default function ReadScreen() {
   const isReading = reader.status === "reading";
   const canControl = Boolean(reader.session) && reader.status !== "loading";
   const title = reader.session?.title || String(params.title || "") || "Reading";
+  const authorUnknown =
+    reader.session?.authorUnknown === true ||
+    (!reader.session?.author && params.authorUnknown === "1") ||
+    (reader.session != null && !String(reader.session.author || "").trim());
 
   return (
     <View style={styles.root}>
+      <SiteHeader onBrandPress={() => router.replace("/")} />
+
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button">
-          <Text style={styles.back}>← Learn</Text>
-        </Pressable>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{title}</Text>
+          <Pressable
+            onPress={() => setShowInfo((v) => !v)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="About this reading"
+            style={styles.infoBtn}
+          >
+            <Text style={styles.infoGlyph}>i</Text>
+          </Pressable>
+        </View>
 
-        <Text style={styles.brand}>Tinker</Text>
+        {showInfo ? (
+          <Text style={styles.infoTip}>
+            Verbatim from the source page — not rewritten by the model.
+          </Text>
+        ) : null}
 
         <SourceByline
           author={reader.session?.author || String(params.author || "")}
-          authorUnknown={
-            reader.session?.authorUnknown === true ||
-            (!reader.session?.author && params.authorUnknown === "1") ||
-            (reader.session != null && !String(reader.session.author || "").trim())
-          }
+          authorUnknown={authorUnknown}
           siteName={reader.session?.siteName || String(params.siteName || "")}
           siteDomain={reader.siteDomain}
           sourceUrl={reader.session?.sourceUrl}
         />
-
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.audioNote}>
-          Verbatim reading from the source page — not rewritten by the model.
-        </Text>
 
         {reader.status === "loading" ? (
           <Text style={styles.status}>{reader.statusMessage || "Loading…"}</Text>
@@ -88,11 +100,7 @@ export default function ReadScreen() {
         ) : (
           <EssayCursor
             text={reader.essayText || reader.chunkText}
-            activeWordIndex={
-              reader.chunkText && reader.essayText !== reader.chunkText
-                ? reader.wordIndex
-                : reader.wordIndex
-            }
+            activeWordIndex={reader.wordIndex}
             followActive={isReading}
           />
         )}
@@ -137,46 +145,54 @@ export default function ReadScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   scroll: {
-    paddingHorizontal: space[5],
-    paddingTop: space[7],
+    paddingHorizontal: 24,
+    paddingTop: 18,
     paddingBottom: space[8],
     maxWidth: 560,
     width: "100%",
     alignSelf: "center",
   },
-  back: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 14,
-    color: colors.forest,
-    marginBottom: space[4],
-  },
-  brand: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 14,
-    color: colors.ink,
-    marginBottom: space[3],
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    marginBottom: 8,
   },
   title: {
+    flex: 1,
     fontFamily: fonts.display,
     fontSize: 31,
     lineHeight: 36,
     color: colors.ink,
-    letterSpacing: -0.5,
-    marginBottom: space[3],
+    letterSpacing: -0.93,
+    fontWeight: "600",
   },
-  audioNote: {
-    fontFamily: fonts.essay,
-    fontSize: 13.5,
-    lineHeight: 20,
+  infoBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 6,
+  },
+  infoGlyph: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12,
     color: colors.muted,
-    marginBottom: space[5],
-    letterSpacing: -0.15,
+  },
+  infoTip: {
+    fontFamily: fonts.essay,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.muted,
+    marginBottom: 10,
   },
   status: {
     fontFamily: fonts.essay,
     fontSize: 15,
     color: colors.muted,
-    paddingHorizontal: space[5],
   },
   statusError: { color: colors.error },
   answer: {
@@ -185,7 +201,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.line,
     gap: space[2],
-    paddingHorizontal: space[5],
   },
   answerLabel: {
     fontFamily: fonts.bodyMedium,

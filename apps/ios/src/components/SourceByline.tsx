@@ -1,5 +1,5 @@
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fonts, space } from "@/src/theme/tokens";
+import { Linking, StyleSheet, Text, View } from "react-native";
+import { colors, fonts } from "@/src/theme/tokens";
 
 type Props = {
   author?: string;
@@ -10,8 +10,9 @@ type Props = {
 };
 
 /**
- * Top-of-reading attribution: "By <Author>" + site name linked to source.
- * Never invents — empty author → "Author unknown".
+ * Subtitle-style attribution under the title — matches lindowlabs
+ * `.ll-talk-essay__audio-note` (Fraunces ~13.44 / muted).
+ * Shows "By <Author>" + linked site. Never invents an author.
  */
 export function SourceByline({
   author,
@@ -26,47 +27,49 @@ export function SourceByline({
 
   return (
     <View style={styles.wrap} accessibilityRole="text">
-      <Text style={styles.by}>{by}</Text>
-      {site ? (
-        sourceUrl ? (
-          <Pressable
-            onPress={() => Linking.openURL(sourceUrl)}
-            accessibilityRole="link"
-            accessibilityLabel={`Open ${site}`}
-          >
-            <Text style={styles.site}>{site}</Text>
-          </Pressable>
-        ) : (
-          <Text style={styles.siteMuted}>{site}</Text>
-        )
-      ) : null}
+      <Text style={styles.note}>
+        {by}
+        {site ? " · " : ""}
+        {site ? (
+          sourceUrl ? (
+            <Text
+              style={styles.site}
+              onPress={() => Linking.openURL(sourceUrl)}
+              accessibilityRole="link"
+            >
+              {site}
+            </Text>
+          ) : (
+            <Text style={styles.siteMuted}>{site}</Text>
+          )
+        ) : null}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: space[1],
-    marginBottom: space[4],
+    marginBottom: 18,
   },
-  by: {
+  note: {
     fontFamily: fonts.essay,
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.inkSoft,
-    letterSpacing: -0.2,
+    fontSize: 13.44,
+    lineHeight: 19.5,
+    letterSpacing: -0.13,
+    color: colors.muted,
   },
   site: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: fonts.essay,
+    fontSize: 13.44,
+    lineHeight: 19.5,
     color: colors.forest,
     textDecorationLine: "underline",
   },
   siteMuted: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: fonts.essay,
+    fontSize: 13.44,
+    lineHeight: 19.5,
     color: colors.muted,
   },
 });

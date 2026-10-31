@@ -14,6 +14,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useShareIntentContext } from "expo-share-intent";
 import * as Clipboard from "expo-clipboard";
 import { searchLearningGoal, type SourceHit } from "@/src/api/learn";
+import { SiteHeader } from "@/src/components/SiteHeader";
 import { getAnonymousDeviceId } from "@/src/lib/deviceId";
 import { colors, fonts, space } from "@/src/theme/tokens";
 
@@ -117,6 +118,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.root}>
+      <SiteHeader />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -125,7 +127,6 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.brand}>Tinker</Text>
           <Text style={styles.headline}>Learn from expert text.</Text>
           <Text style={styles.lede}>
             Name what you want to learn. Tinker picks one best source, reads it
@@ -244,19 +245,12 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  brand: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 15,
-    letterSpacing: 0.2,
-    color: colors.ink,
-  },
   headline: {
     fontFamily: fonts.display,
     fontSize: 32,
     lineHeight: 38,
     color: colors.ink,
     letterSpacing: -0.6,
-    marginTop: space[2],
   },
   lede: {
     fontFamily: fonts.essay,
