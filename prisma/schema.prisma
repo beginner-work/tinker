@@ -420,6 +420,8 @@ model AskRequest {
 // Reading-agent session. sourceUrl is the public article being read;
 // companyHost is derived for per-target-company metrics. Article body
 // text is NOT stored here (ephemeral cache + re-fetch from sourceUrl).
+// anonymousId is a first-party opaque id (no PII). isOwner rows are
+// excluded from resume metrics (see RESUME_METRICS.md).
 model ReadingSession {
   id               String   @id
   createdAt        DateTime @default(now())
@@ -435,11 +437,17 @@ model ReadingSession {
   links            Json     @default("[]")
   resumeWordIndex  Int      @default(0)
   voiceId          String   @default("")
+  anonymousId      String   @default("")
+  isOwner          Boolean  @default(false)
+  embedHost        String   @default("")
+  questionCount    Int      @default(0)
 
   @@index([createdAt])
   @@index([caller, createdAt])
   @@index([companyHost, createdAt])
   @@index([sourceUrl, createdAt])
+  @@index([anonymousId, createdAt])
+  @@index([isOwner, createdAt])
 }
 
 // One interrupt question per reading session (voice or typed).
@@ -464,12 +472,16 @@ model ReadingQuestion {
   sourceUrl         String   @default("")
   companyHost       String   @default("")
   error             String   @default("")
+  anonymousId       String   @default("")
+  isOwner           Boolean  @default(false)
 
   @@index([createdAt])
   @@index([sessionId, createdAt])
   @@index([companyHost, createdAt])
   @@index([fetchedSource, createdAt])
   @@index([status, createdAt])
+  @@index([anonymousId, createdAt])
+  @@index([isOwner, createdAt])
 }
 
 // Clicks out of the reading widget (LinkedIn, email, original source).
@@ -482,10 +494,40 @@ model ReadingClick {
   href         String   @default("")
   sourceUrl    String   @default("")
   companyHost  String   @default("")
+  anonymousId  String   @default("")
+  isOwner      Boolean  @default(false)
 
   @@index([createdAt])
   @@index([target, createdAt])
   @@index([sessionId, createdAt])
   @@index([companyHost, createdAt])
+  @@index([isOwner, createdAt])
+}
+
+// Distinct embed hosts that loaded the reading widget / SDK.
+// Excludes lindowlabs.dev, localhost, and Vercel preview hosts at write time.
+model ReadingEmbedHost {
+  host        String   @id
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @updatedAt
+  loadCount   Int      @default(0)
+
+  @@index([lastSeenAt])
+}
+
+// Latest Braintrust (and similar) eval gate results for resume pass-rate.
+model EvalRun {
+  id             String   @id
+  createdAt      DateTime @default(now())
+  project        String   @default("tinker-ask")
+  passRate       Float
+  caseCount      Int      @default(0)
+  passedCount    Int      @default(0)
+  failedCount    Int      @default(0)
+  experimentUrl  String   @default("")
+  report         Json     @default("{}")
+
+  @@index([createdAt])
+  @@index([project, createdAt])
 }
 
