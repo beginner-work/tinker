@@ -280,20 +280,40 @@ jobs:
             --benchmark ednet-zpd \
             --split dev
 
-      - name: Braintrust eval-action (ednet + source)
+      # One path per invocation — multiline `paths:` was executed as a second
+      # shell command (`evals/source-zpd` → exit 126). Primary scores already
+      # logged above via run.js + Braintrust SDK.
+      - name: Braintrust eval-action (ednet)
         if: steps.secrets.outputs.skip_keyed != 'true' && steps.secrets.outputs.skip_braintrust != 'true'
         uses: braintrustdata/eval-action@v2
         with:
           api_key: ${{ secrets.BRAINTRUST_API_KEY }}
           runtime: node
           root: .
-          paths: |
-            evals/ednet-zpd
-            evals/source-zpd
+          paths: evals/ednet-zpd
           package_manager: npm
           use_proxy: false
           terminate_on_failure: false
-          report_scores: TinkerBandMatch,BktBandMatch,TinkerHit,ClaudeHit
+        env:
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          ASK_MODEL: anthropic/claude-haiku-4-5-20251001
+          JEV_EVAL_PIN: "1"
+          JEV_MODEL: typesafe-ai/jev-1.14.0
+          EDNET_SAMPLE_SEED: "42"
+          EDNET_SAMPLE_USERS: "200"
+          EDNET_SAMPLE_EVENTS: "1500"
+
+      - name: Braintrust eval-action (source)
+        if: steps.secrets.outputs.skip_keyed != 'true' && steps.secrets.outputs.skip_braintrust != 'true'
+        uses: braintrustdata/eval-action@v2
+        with:
+          api_key: ${{ secrets.BRAINTRUST_API_KEY }}
+          runtime: node
+          root: .
+          paths: evals/source-zpd
+          package_manager: npm
+          use_proxy: false
+          terminate_on_failure: false
         env:
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           ASK_MODEL: anthropic/claude-haiku-4-5-20251001
