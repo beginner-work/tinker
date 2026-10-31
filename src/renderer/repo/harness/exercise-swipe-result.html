@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>tinker - mobile exercise swipe result</title>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Instrument+Sans:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css?v=40" />
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <link rel="stylesheet" href="/repo/repo.css?v=73" />
+  </head>
+  <!-- Static iPhone harness: card mid-swipe (accepted as better). -->
+  <body class="repo-page repo-page--write repo-code-open" data-repo-mode="write">
+    <header class="repo-top repo-top--labs" aria-label="Tools">
+      <button type="button" class="repo-top__labs" id="repo-labs-link" aria-label="Development" title="Development">
+        <img class="repo-top__labs-icon" src="/icons/tinker-mark.svg?v=40" alt="" width="20" height="20" aria-hidden="true" />
+      </button>
+      <button type="button" class="repo-top__past-essays" id="repo-past-essays" aria-label="Founder Source" title="Founder Source">
+        <svg class="repo-top__past-essays-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M4 5h16M4 12h16M4 19h16"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="repo-layout repo-layout--write repo-layout--learning is-code-open is-swipe-mode" id="repo-layout">
+      <div class="repo-ide-center" id="repo-ide-center">
+        <main class="repo-center repo-write-safe-top" id="repo-editor-main" aria-label="Editor">
+          <div class="repo-code-host" id="repo-code-host">
+            <div class="repo-code" id="repo-code" aria-label="Practice file">
+              <div class="repo-learning" id="repo-learning">
+                <p class="repo-learning__goal" id="repo-learning-goal">Write OpenAPI by feel</p>
+                <div class="repo-learning__prompt" id="repo-learning-prompt">
+                  <p class="repo-learning__prompt-text" id="repo-learning-prompt-text">Name ask and return for one path.</p>
+                </div>
+              </div>
+              <div class="repo-code__bar">
+                <p class="repo-code__path" id="repo-code-path">api.yaml</p>
+              </div>
+              <div class="repo-swipe" id="repo-swipe">
+                <p class="repo-swipe__hint" id="repo-swipe-hint">Swipe right if better, left if worse</p>
+                <div class="repo-swipe__stage" id="repo-swipe-stage">
+                  <div class="repo-swipe__card is-exit-right" id="repo-swipe-card" aria-live="polite" style="transform: translateX(72%) rotate(6deg); opacity: 0.72;">
+                    <div class="repo-swipe__diff" id="repo-swipe-diff" aria-label="Proposed change">
+                      <pre class="repo-swipe__line repo-swipe__line--ctx">    get:</pre>
+                      <pre class="repo-swipe__line repo-swipe__line--del">      summary: Fetch</pre>
+                      <pre class="repo-swipe__line repo-swipe__line--add">      summary: Fetch one PaymentIntent by id</pre>
+                      <pre class="repo-swipe__line repo-swipe__line--ctx">      responses:</pre>
+                    </div>
+                    <p class="repo-swipe__why" id="repo-swipe-why" hidden></p>
+                  </div>
+                </div>
+                <div class="repo-swipe__actions" id="repo-swipe-actions">
+                  <button type="button" class="repo-swipe__btn repo-swipe__btn--worse" id="repo-swipe-worse" disabled>Worse</button>
+                  <button type="button" class="repo-swipe__btn repo-swipe__btn--better" id="repo-swipe-better" disabled>Better</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+        <section class="repo-panel repo-panel--write" id="repo-panel" hidden aria-label="Writing"></section>
+      </div>
+    </div>
+  </body>
+</html>

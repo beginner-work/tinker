@@ -5617,3 +5617,188 @@ html.labs-drawer-open body {
   display: none !important;
 }
 
+/* Mobile swipe drill: one compact better/worse diff card at a time. */
+.repo-swipe {
+  display: none;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+.repo-swipe[hidden] {
+  display: none !important;
+}
+
+.repo-swipe__hint {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.repo-swipe__stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 180px;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.repo-swipe__card {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 14px 14px 16px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: color-mix(in srgb, var(--color-background) 94%, var(--color-accent, #a5b4fc) 6%);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-ink, #2d2a26) 8%, transparent);
+  touch-action: pan-y;
+  will-change: transform;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.repo-swipe__card.is-dragging {
+  transition: none;
+}
+
+.repo-swipe__card.is-exit-right {
+  transform: translateX(120%) rotate(8deg);
+  opacity: 0;
+}
+
+.repo-swipe__card.is-exit-left {
+  transform: translateX(-120%) rotate(-8deg);
+  opacity: 0;
+}
+
+.repo-swipe__status {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.repo-swipe__diff {
+  margin: 0;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow: auto;
+  max-height: min(42vh, 280px);
+}
+
+.repo-swipe__line {
+  margin: 0;
+  padding: 4px 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 6px;
+}
+
+.repo-swipe__line + .repo-swipe__line {
+  margin-top: 3px;
+}
+
+.repo-swipe__line--del {
+  background: color-mix(in srgb, #b91c1c 10%, var(--color-background));
+  border: 1px solid color-mix(in srgb, #b91c1c 28%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, #b91c1c 55%, transparent);
+}
+
+.repo-swipe__line--add {
+  background: color-mix(in srgb, #15803d 10%, var(--color-background));
+  border: 1px solid color-mix(in srgb, #15803d 28%, transparent);
+}
+
+.repo-swipe__line--ctx {
+  color: var(--color-muted);
+}
+
+.repo-swipe__why {
+  margin: 12px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-ink, #2d2a26);
+  text-align: center;
+}
+
+.repo-swipe__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.repo-swipe__btn {
+  flex: 1 1 0;
+  max-width: 160px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--radius-button, 10px);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.repo-swipe__btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.repo-swipe__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.repo-swipe__btn--worse {
+  color: #b91c1c;
+  border-color: color-mix(in srgb, #b91c1c 35%, var(--color-border));
+}
+
+.repo-swipe__btn--better {
+  color: #15803d;
+  border-color: color-mix(in srgb, #15803d 35%, var(--color-border));
+  background: color-mix(in srgb, #15803d 8%, var(--color-background));
+}
+
+@media (max-width: 800px) {
+  .repo-layout--learning.is-code-open .repo-swipe:not([hidden]),
+  body.repo-code-open .repo-layout--learning .repo-swipe:not([hidden]) {
+    display: flex !important;
+  }
+
+  .repo-layout--learning.is-code-open.is-swipe-mode .repo-code__surface,
+  .repo-layout--learning.is-code-open.is-swipe-mode .repo-code__editor,
+  .repo-layout--learning.is-code-open.is-swipe-mode .repo-code__preview,
+  .repo-layout--learning.is-code-open.is-swipe-mode .repo-code__thats-everything,
+  .repo-layout--learning.is-code-open.is-swipe-mode .repo-code__undo,
+  .repo-layout--learning.is-code-open.is-swipe-mode .repo-code__evaluate-panel,
+  .repo-layout--learning.is-code-open.is-swipe-mode .repo-learning__zpd {
+    display: none !important;
+  }
+}
+
+@media (min-width: 801px) {
+  .repo-swipe {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .repo-swipe__card {
+    transition: none;
+  }
+}
+

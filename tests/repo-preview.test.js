@@ -960,7 +960,8 @@ test("repo write page is writing surface + Location place + structure sidebar", 
     /setTechnicalEssayList\(false\)/
   );
   assert.match(html, /src="\/lib\/claude-models\.js\?v=3"/);
-  assert.match(html, /src="\/lib\/claude-structured\.js\?v=2"/);
+  assert.match(html, /src="\/lib\/claude-structured\.js\?v=3"/);
+  assert.match(html, /src="\/lib\/exercise-swipe\.js\?v=1"/);
   assert.match(html, /src="\/repo\/storage-section\.js\?v=40"/);
   assert.match(html, /src="\/platform-mobile\.js\?v=42"/);
   assert.match(html, /src="\/interview-prompt\.js\?v=41"/);
