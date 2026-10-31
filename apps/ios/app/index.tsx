@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,11 +10,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useShareIntentContext } from "expo-share-intent";
 import * as Clipboard from "expo-clipboard";
-import { BrandMark } from "@/src/components/BrandMark";
+import { searchLearningGoal, type SourceHit } from "@/src/api/learn";
+import { getAnonymousDeviceId } from "@/src/lib/deviceId";
 import { colors, fonts, space } from "@/src/theme/tokens";
 
 function extractUrl(raw: string): string {
@@ -26,8 +27,15 @@ function extractUrl(raw: string): string {
 export default function HomeScreen() {
   const params = useLocalSearchParams<{ url?: string }>();
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
+  const [goal, setGoal] = useState("");
   const [url, setUrl] = useState(String(params.url || ""));
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [pick, setPick] = useState<{
+    chosen: SourceHit;
+    alternatives: SourceHit[];
+    query: string;
+  } | null>(null);
 
   useEffect(() => {
     if (params.url) setUrl(String(params.url));
@@ -38,7 +46,6 @@ export default function HomeScreen() {
     const shared =
       shareIntent.webUrl ||
       shareIntent.text ||
-      (Array.isArray(shareIntent.files) ? "" : "") ||
       "";
     const next = extractUrl(String(shared));
     if (next) {
@@ -47,15 +54,56 @@ export default function HomeScreen() {
     }
   }, [hasShareIntent, shareIntent, resetShareIntent]);
 
-  const openReader = useCallback(() => {
-    const next = extractUrl(url);
-    if (!next || !/^https?:\/\//i.test(next)) {
-      setError("Paste a public https link to the text you want to engage with.");
+  const openUrl = useCallback(
+    (nextUrl: string, meta?: Partial<SourceHit>) => {
+      const next = extractUrl(nextUrl);
+      if (!next || !/^https?:\/\//i.test(next)) {
+        setError("Need a public https link.");
+        return;
+      }
+      setError("");
+      router.push({
+        pathname: "/read",
+        params: {
+          url: next,
+          title: meta?.title || "",
+          author: meta?.author || "",
+          authorSource: meta?.authorSource || "",
+          authorUnknown: meta?.authorUnknown ? "1" : "",
+          siteName: meta?.siteName || meta?.domain || "",
+        },
+      });
+    },
+    [],
+  );
+
+  const openSharedOrPasted = useCallback(() => {
+    openUrl(url);
+  }, [openUrl, url]);
+
+  const runLearn = useCallback(async () => {
+    const q = goal.trim();
+    if (!q) {
+      setError("What do you want to learn?");
       return;
     }
     setError("");
-    router.push({ pathname: "/read", params: { url: next } });
-  }, [url]);
+    setBusy(true);
+    setPick(null);
+    try {
+      const aid = await getAnonymousDeviceId();
+      const result = await searchLearningGoal(q, { anonymousId: aid });
+      setPick({
+        chosen: result.chosen,
+        alternatives: result.alternatives || [],
+        query: result.query,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Search failed");
+    } finally {
+      setBusy(false);
+    }
+  }, [goal]);
 
   const pasteFromClipboard = useCallback(async () => {
     try {
@@ -68,7 +116,7 @@ export default function HomeScreen() {
   }, []);
 
   return (
-    <LinearGradient colors={[colors.bg0, colors.bg1]} style={styles.flex}>
+    <View style={styles.root}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -77,16 +125,83 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          <BrandMark size="hero" />
-          <Text style={styles.headline}>Engage with expert text.</Text>
+          <Text style={styles.brand}>Tinker</Text>
+          <Text style={styles.headline}>Learn from expert text.</Text>
           <Text style={styles.lede}>
-            Stuck on docs, a dense README, or a talk you are hearing for the first
-            time? Tinker reads it aloud, answers grounded questions, then picks
-            back up where you left off — with a non-Tyler voice.
+            Name what you want to learn. Tinker picks one best source, reads it
+            aloud verbatim, and answers grounded questions.
           </Text>
 
-          <View style={styles.form}>
-            <Text style={styles.label}>Link to the text</Text>
+          <View style={styles.fieldBlock}>
+            <Text style={styles.label}>Learning goal</Text>
+            <TextInput
+              style={styles.input}
+              value={goal}
+              onChangeText={setGoal}
+              placeholder="e.g. how Postgres MVCC works"
+              placeholderTextColor={colors.muted}
+              accessibilityLabel="Learning goal"
+              returnKeyType="search"
+              onSubmitEditing={() => void runLearn()}
+            />
+            <Pressable
+              style={[styles.primary, busy && styles.disabled]}
+              onPress={() => void runLearn()}
+              disabled={busy}
+              accessibilityRole="button"
+            >
+              {busy ? (
+                <ActivityIndicator color={colors.bg} />
+              ) : (
+                <Text style={styles.primaryText}>Find a source</Text>
+              )}
+            </Pressable>
+          </View>
+
+          {pick ? (
+            <View style={styles.pickBlock}>
+              <Text style={styles.pickLabel}>Best source</Text>
+              <Text style={styles.pickTitle}>{pick.chosen.title}</Text>
+              <Text style={styles.pickWhy}>{pick.chosen.why}</Text>
+              <Text style={styles.pickAuthor}>
+                {pick.chosen.author && !pick.chosen.authorUnknown
+                  ? `By ${pick.chosen.author}`
+                  : "Author unknown"}
+                {pick.chosen.siteName || pick.chosen.domain
+                  ? ` · ${pick.chosen.siteName || pick.chosen.domain}`
+                  : ""}
+              </Text>
+              <Pressable
+                style={styles.primary}
+                onPress={() => openUrl(pick.chosen.url, pick.chosen)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.primaryText}>Read this</Text>
+              </Pressable>
+              {pick.alternatives.length ? (
+                <View style={styles.alts}>
+                  <Text style={styles.pickLabel}>Alternatives</Text>
+                  {pick.alternatives.map((alt) => (
+                    <Pressable
+                      key={alt.url}
+                      style={styles.altRow}
+                      onPress={() => openUrl(alt.url, alt)}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.altTitle}>{alt.title}</Text>
+                      <Text style={styles.altMeta}>
+                        {alt.domain}
+                        {alt.why ? ` — ${alt.why}` : ""}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          <View style={styles.shareBlock}>
+            <Text style={styles.label}>Or open a shared URL</Text>
             <TextInput
               style={styles.input}
               value={url}
@@ -94,46 +209,31 @@ export default function HomeScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
-              placeholder="https://…/docs/… or a README, transcript, …"
+              placeholder="https://…/docs/…"
               placeholderTextColor={colors.muted}
               accessibilityLabel="Text URL"
               returnKeyType="go"
-              onSubmitEditing={openReader}
+              onSubmitEditing={openSharedOrPasted}
             />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <View style={styles.actions}>
-              <Pressable
-                style={[styles.btn, styles.ghost]}
-                onPress={pasteFromClipboard}
-                accessibilityRole="button"
-                accessibilityLabel="Paste URL"
-              >
+            <View style={styles.row}>
+              <Pressable style={styles.ghost} onPress={pasteFromClipboard}>
                 <Text style={styles.ghostText}>Paste</Text>
               </Pressable>
-              <Pressable
-                style={[styles.btn, styles.primary]}
-                onPress={openReader}
-                accessibilityRole="button"
-                accessibilityLabel="Open reader"
-              >
-                <Text style={styles.primaryText}>Read with Tinker</Text>
+              <Pressable style={styles.ghost} onPress={openSharedOrPasted}>
+                <Text style={styles.ghostText}>Open link</Text>
               </Pressable>
             </View>
           </View>
 
-          <Text style={styles.foot}>
-            Examples: product docs when you are stuck, a README for a complex
-            codebase, a talk transcript you are hearing for the first time. Share
-            any https link into Tinker from Safari. A Safari page overlay ships in
-            Milestone 2.
-          </Text>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   scroll: {
     paddingHorizontal: space[6],
@@ -144,34 +244,34 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  headline: {
-    fontFamily: fonts.displaySoft,
-    fontSize: 28,
-    lineHeight: 34,
+  brand: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 15,
+    letterSpacing: 0.2,
     color: colors.ink,
-    letterSpacing: -0.4,
-    marginTop: space[4],
+  },
+  headline: {
+    fontFamily: fonts.display,
+    fontSize: 32,
+    lineHeight: 38,
+    color: colors.ink,
+    letterSpacing: -0.6,
+    marginTop: space[2],
   },
   lede: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.essay,
     fontSize: 16,
     lineHeight: 24,
     color: colors.muted,
     maxWidth: 420,
+    letterSpacing: -0.2,
   },
-  form: {
-    marginTop: space[4],
-    backgroundColor: colors.panel,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 18,
-    padding: space[5],
-    gap: space[3],
-  },
+  fieldBlock: { gap: space[3], marginTop: space[3] },
+  shareBlock: { gap: space[3], marginTop: space[5] },
   label: {
-    fontFamily: fonts.bodySemi,
+    fontFamily: fonts.bodyMedium,
     fontSize: 12,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
     color: colors.muted,
   },
@@ -186,46 +286,84 @@ const styles = StyleSheet.create({
     color: colors.ink,
     backgroundColor: colors.cream,
   },
-  error: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.error,
-  },
-  actions: {
-    flexDirection: "row",
-    gap: space[3],
-    marginTop: space[2],
-  },
-  btn: {
+  primary: {
     borderRadius: 999,
     paddingVertical: 14,
     paddingHorizontal: 18,
     alignItems: "center",
     justifyContent: "center",
-  },
-  primary: {
-    flex: 1,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
+    minHeight: 48,
   },
   primaryText: {
     fontFamily: fonts.bodySemi,
-    color: "#f7fff9",
+    color: colors.bg,
     fontSize: 16,
   },
+  disabled: { opacity: 0.6 },
   ghost: {
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: colors.barBorder,
+    backgroundColor: colors.btnBg,
   },
   ghostText: {
     fontFamily: fonts.bodySemi,
     color: colors.ink,
-    fontSize: 16,
+    fontSize: 15,
   },
-  foot: {
+  row: { flexDirection: "row", gap: space[3] },
+  error: {
     fontFamily: fonts.body,
     fontSize: 13,
-    lineHeight: 19,
+    color: colors.error,
+  },
+  pickBlock: {
+    gap: space[3],
+    paddingTop: space[2],
+  },
+  pickLabel: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
     color: colors.muted,
-    marginTop: space[3],
+  },
+  pickTitle: {
+    fontFamily: fonts.display,
+    fontSize: 22,
+    lineHeight: 28,
+    color: colors.ink,
+    letterSpacing: -0.4,
+  },
+  pickWhy: {
+    fontFamily: fonts.essay,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.inkSoft,
+  },
+  pickAuthor: {
+    fontFamily: fonts.essay,
+    fontSize: 14,
+    color: colors.muted,
+  },
+  alts: { gap: space[2], marginTop: space[2] },
+  altRow: {
+    paddingVertical: space[2],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  altTitle: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 15,
+    color: colors.ink,
+  },
+  altMeta: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.muted,
+    marginTop: 2,
   },
 });

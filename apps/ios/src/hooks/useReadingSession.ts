@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";
+import { extractVerbatim } from "@/src/api/learn";
 import {
   askQuestion,
   createSession,
@@ -27,10 +28,20 @@ type Options = {
   isOwner?: boolean;
 };
 
+type StartOpts = {
+  /** Prefetched author from search pick — never invent client-side. */
+  author?: string;
+  authorSource?: string;
+  authorUnknown?: boolean;
+  siteName?: string;
+  title?: string;
+};
+
 export function useReadingSession(opts: Options = {}) {
   const [status, setStatus] = useState<ReaderStatus>("idle");
   const [statusMessage, setStatusMessage] = useState("");
   const [session, setSession] = useState<SessionResponse | null>(null);
+  const [essayText, setEssayText] = useState("");
   const [wordIndex, setWordIndex] = useState(0);
   const [wordCount, setWordCount] = useState(0);
   const [chunkText, setChunkText] = useState("");
@@ -43,7 +54,6 @@ export function useReadingSession(opts: Options = {}) {
   const wordIndexRef = useRef(0);
   const playerRef = useRef<AudioPlayer | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastChunkDoneRef = useRef(false);
 
   useEffect(() => {
     getAnonymousDeviceId().then(setAnonymousId);
@@ -75,11 +85,12 @@ export function useReadingSession(opts: Options = {}) {
   };
 
   const startSession = useCallback(
-    async (url: string) => {
+    async (url: string, startOpts: StartOpts = {}) => {
       setStatus("loading");
       setStatusMessage("Fetching text…");
       setAnswer(null);
       setChunkText("");
+      setEssayText("");
       setWord(0);
       playingRef.current = false;
       stopTick();
@@ -87,20 +98,52 @@ export function useReadingSession(opts: Options = {}) {
       try {
         const id = anonymousId || (await getAnonymousDeviceId());
         if (!anonymousId) setAnonymousId(id);
-        const data = await createSession(url, {
-          anonymousId: id,
-          ...(opts.isOwner ? { owner: "1" as const } : {}),
-        });
+
+        // Always extract verbatim page text + author metadata server-side.
+        // Never invent an author on the client.
+        const extracted = await extractVerbatim(url);
+        const author = String(extracted.author || startOpts.author || "").trim();
+        const authorUnknown =
+          extracted.authorUnknown === true ||
+          startOpts.authorUnknown === true ||
+          !author;
+
+        const data = await createSession(
+          {
+            url: extracted.sourceUrl || url,
+            verbatimText: extracted.text,
+            title: extracted.title || startOpts.title || "",
+            author: authorUnknown ? "" : author,
+            siteName: extracted.siteName || startOpts.siteName || "",
+            authorSource:
+              extracted.authorSource || startOpts.authorSource || (author ? "extract" : "none"),
+            authorUnknown,
+          },
+          {
+            anonymousId: id,
+            ...(opts.isOwner ? { owner: "1" as const } : {}),
+          },
+        );
         if (data.voiceId === BANNED_VOICE_ID) {
           throw new Error("Refusing banned voice id");
         }
-        setSession(data);
-        setWordCount(data.wordCount || 0);
-        setSiteDomain(data.companyHost || siteDomainFromUrl(data.sourceUrl));
-        setChunkText(data.preview || "");
+        setSession({
+          ...data,
+          author: authorUnknown ? "" : author || data.author,
+          authorUnknown,
+          siteName: extracted.siteName || data.siteName || startOpts.siteName || "",
+        });
+        setEssayText(extracted.text || data.preview || "");
+        setWordCount(extracted.wordCount || data.wordCount || 0);
+        setSiteDomain(
+          data.companyHost ||
+            extracted.companyHost ||
+            siteDomainFromUrl(data.sourceUrl),
+        );
+        setChunkText(extracted.text || data.preview || "");
         setChunkStart(0);
         setStatus("ready");
-        setStatusMessage("Ready. Press Listen.");
+        setStatusMessage("Ready.");
         return data;
       } catch (err) {
         setStatus("error");
@@ -173,7 +216,7 @@ export function useReadingSession(opts: Options = {}) {
         stopTick();
         setWord(to);
         setStatus("done");
-        setStatusMessage("Finished reading.");
+        setStatusMessage("Finished.");
         return;
       }
       const wordsInChunk = Math.max(1, to - (data.fromWordIndex || from));
@@ -182,11 +225,10 @@ export function useReadingSession(opts: Options = {}) {
       await playBase64(data.audio, data.contentType);
       stopTick();
       setWord(to);
-      lastChunkDoneRef.current = Boolean(data.done);
       if (data.done) {
         playingRef.current = false;
         setStatus("done");
-        setStatusMessage("Finished reading.");
+        setStatusMessage("Finished.");
         return;
       }
       if (playingRef.current) {
@@ -198,7 +240,7 @@ export function useReadingSession(opts: Options = {}) {
       setStatus("error");
       setStatusMessage(err instanceof Error ? err.message : "Speak failed");
     }
-  }, [session, wordCount]);
+  }, [session, wordCount, chunkText]);
 
   const pause = useCallback(() => {
     playingRef.current = false;
@@ -248,9 +290,7 @@ export function useReadingSession(opts: Options = {}) {
         setSiteDomain(data.companyHost || siteDomain || siteDomainFromUrl(data.sourceUrl));
         setStatus("answering");
         setStatusMessage(
-          data.fetchedSource
-            ? "Answered with a linked source."
-            : "Answered from the text.",
+          data.fetchedSource ? "Answered with a linked source." : "Answered from the text.",
         );
         if (data.audio) {
           await playBase64(data.audio);
@@ -265,13 +305,13 @@ export function useReadingSession(opts: Options = {}) {
     [session, anonymousId, opts.isOwner, pause, siteDomain],
   );
 
-  const progress =
-    wordCount > 0 ? Math.min(1, wordIndex / wordCount) : 0;
+  const progress = wordCount > 0 ? Math.min(1, wordIndex / wordCount) : 0;
 
   return {
     status,
     statusMessage,
     session,
+    essayText,
     wordIndex,
     wordCount,
     chunkText,

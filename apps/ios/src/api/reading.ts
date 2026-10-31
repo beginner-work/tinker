@@ -4,7 +4,6 @@ import { BANNED_VOICE_ID } from "@/src/theme/tokens";
 export type ClientMeta = {
   anonymousId: string;
   owner?: "1";
-  platform?: string;
 };
 
 export type SessionResponse = {
@@ -12,12 +11,16 @@ export type SessionResponse = {
   sourceUrl: string;
   title: string;
   author: string;
+  authorSource?: string;
+  authorUnknown?: boolean;
   siteName?: string;
   wordCount: number;
   companyHost: string;
   voiceId: string;
   preview: string;
   attribution: string;
+  verbatim?: boolean;
+  platform?: string;
 };
 
 export type SpeakResponse = {
@@ -50,8 +53,6 @@ export type AskResponse = {
   author?: string;
   attribution?: string;
   companyHost?: string;
-  linkedInUrl?: string;
-  emailUrl?: string;
 };
 
 function endpoint(action: string): string {
@@ -70,9 +71,9 @@ async function postJson<T>(action: string, body: Record<string, unknown>): Promi
   });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) {
-    const err = new Error(data.error || `Request failed (${res.status})`);
-    (err as Error & { status?: number }).status = res.status;
-    throw err;
+    throw Object.assign(new Error(data.error || `Request failed (${res.status})`), {
+      status: res.status,
+    });
   }
   return data;
 }
@@ -85,15 +86,29 @@ export function siteDomainFromUrl(url: string): string {
   }
 }
 
+/** Start a reading session. Prefer verbatimText from extract — never model rewrite. */
 export async function createSession(
-  url: string,
+  args: {
+    url: string;
+    verbatimText?: string;
+    title?: string;
+    author?: string;
+    siteName?: string;
+    authorSource?: string;
+    authorUnknown?: boolean;
+  },
   meta: ClientMeta,
 ): Promise<SessionResponse> {
   const data = await postJson<SessionResponse>("session", {
-    url,
+    url: args.url,
+    verbatimText: args.verbatimText || "",
+    title: args.title || "",
+    author: args.author || "",
+    siteName: args.siteName || "",
+    authorSource: args.authorSource || "",
+    authorUnknown: Boolean(args.authorUnknown),
     anonymousId: meta.anonymousId,
     ...(meta.owner ? { owner: meta.owner } : {}),
-    platform: PLATFORM,
   });
   if (data.voiceId === BANNED_VOICE_ID) {
     throw new Error("Refusing banned voice id");
@@ -132,7 +147,6 @@ export async function askQuestion(args: {
     anonymousId: args.anonymousId,
     rawTranscript: args.rawTranscript || "",
     ...(args.owner ? { owner: args.owner } : {}),
-    platform: PLATFORM,
   });
 }
 
@@ -141,7 +155,6 @@ export async function writeAudioCache(
   contentType = "audio/mpeg",
 ): Promise<string> {
   if (!b64) return "";
-  // Web: object URL from bytes.
   if (typeof document !== "undefined") {
     const bin = atob(b64);
     const bytes = new Uint8Array(bin.length);
@@ -157,4 +170,32 @@ export async function writeAudioCache(
     encoding: FileSystem.EncodingType.Base64,
   });
   return uri;
+}
+
+/** Split verbatim text into short punchy display lines (lindowlabs essay feel). */
+export function punchyLines(text: string): string[] {
+  const paras = String(text || "")
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const lines: string[] = [];
+  for (const para of paras) {
+    // Keep short sentences as their own lines; break long ones near ~90 chars.
+    const sentences = para.split(/(?<=[.!?])\s+/).filter(Boolean);
+    for (const s of sentences) {
+      if (s.length <= 110) {
+        lines.push(s);
+        continue;
+      }
+      let rest = s;
+      while (rest.length > 110) {
+        let cut = rest.lastIndexOf(" ", 90);
+        if (cut < 40) cut = 90;
+        lines.push(rest.slice(0, cut).trim());
+        rest = rest.slice(cut).trim();
+      }
+      if (rest) lines.push(rest);
+    }
+  }
+  return lines;
 }
