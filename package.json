@@ -52,7 +52,7 @@
     "writing"
   ],
   "author": "tinker",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "dependencies": {
     "@prisma/client": "^5.22.0",

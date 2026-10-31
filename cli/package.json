@@ -21,7 +21,7 @@
     "cli"
   ],
   "author": "tinker",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": false,
   "repository": {
     "type": "git",

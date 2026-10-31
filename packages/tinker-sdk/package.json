@@ -2,7 +2,7 @@
   "name": "@tinker/sdk",
   "version": "0.1.0",
   "description": "Embed Tinker voice ask on any site — server client + browser Ask pill",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "type": "commonjs",
   "main": "./dist/index.js",
