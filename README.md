@@ -30,6 +30,24 @@ Payments (Stripe) and identity (Stytch) stay as external services wired
 in where the product needs them. They are not carved out into their own
 repos either — just not what this tree *is*.
 
+## Open source vs private
+
+This repo is MIT-licensed (see `LICENSE`). What that covers, and what
+stays private:
+
+- **Open:** the Tinker app (web, Electron, mobile shared renderer), the
+  CLI, the product API surface under `api/`, the embed SDK under
+  `packages/tinker-sdk`, and the benchmark harness under `evals/`
+  (fixtures, scorers, reporters, and published results).
+- **Private:** teaching config: tuned agent instructions and eval
+  question instructions/criteria. That material is not part of the
+  open-source product surface; production loads it at runtime from a
+  private source rather than treating it as redistributable repo
+  content.
+
+Goal numbers stay in `DO_NOT_PUBLISH*` files and are not for public
+surfaces. Secrets belong in environment / Actions, never in git.
+
 ## CLI (`tinker`)
 
 The writing coach also runs as a command-line tool named `tinker`. It is
