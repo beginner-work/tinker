@@ -147,14 +147,31 @@ function main() {
     rows = readExperiments();
   }
 
+  const reportSource = report.source || (report.meta && report.meta.source) || null;
+
   // Callers should pass the *pre-run* snapshot of experiments.jsonl (CI copies
-  // HEAD before appending). Use the last matching row as the gate baseline.
-  const baselineRow = lastBaselineRow(rows, args.benchmark, args.split);
+  // HEAD before appending). Prefer the last row with the same data source so
+  // synthetic CI fixtures are not gated against real EdNet baselines (and
+  // vice versa).
+  let baselineRow = null;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const r = rows[i];
+    if (!r || r.benchmark !== args.benchmark || r.split !== args.split || !r.devScore) {
+      continue;
+    }
+    const rowSource = (r.meta && r.meta.source) || null;
+    if (reportSource && rowSource && reportSource !== rowSource) continue;
+    baselineRow = r;
+    break;
+  }
   if (!baselineRow) {
     console.log(
       JSON.stringify({
         ok: true,
-        reason: "no_prior_baseline",
+        reason: reportSource
+          ? "no_prior_baseline_for_source"
+          : "no_prior_baseline",
+        source: reportSource,
         tolerance: args.tolerance,
         benchmark: args.benchmark,
         split: args.split,
