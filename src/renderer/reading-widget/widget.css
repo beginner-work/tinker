@@ -150,6 +150,10 @@ body.rw-embed {
   padding-top: 12px;
 }
 
+.rw-interrupt[hidden] {
+  display: none !important;
+}
+
 .rw-interrupt label {
   font-size: 0.78rem;
   letter-spacing: 0.04em;

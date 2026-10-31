@@ -63,9 +63,10 @@
           mountReader(url);
         } else {
           demo.hidden = false;
-          // Sample: Tyler's own public writing (first-party). Hosts may pass
-          // any public engineering blog URL via ?url=.
-          input.value = "https://lindowlabs.dev";
+          // First target source: a public Sierra engineering blog post.
+          // Hosts may pass any public article URL via ?url=.
+          input.value =
+            "https://sierra.ai/blog/gardening-week-evergreen-engineering";
           form.addEventListener("submit", function (e) {
             e.preventDefault();
             var next = String(input.value || "").trim();

@@ -88,6 +88,21 @@ describe("fetch-page helpers", () => {
     assert.ok(page.wordCount > 20);
   });
 
+  test("extractAuthor reads JSON-LD Article author (Sierra-style)", () => {
+    const html = `<!doctype html><html><head>
+<title>Gardening Week</title>
+<script type="application/ld+json">${JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: "Gardening week: evergreen engineering",
+      author: [{ "@type": "Person", name: "Mihai Parparita" }],
+    })}</script>
+<meta property="og:site_name" content="Sierra" />
+</head><body><article><p>Evergreen engineering between milestones.</p></article></body></html>`;
+    assert.equal(fetchPage.extractAuthor(html), "Mihai Parparita");
+    assert.equal(fetchPage.extractSiteName(html), "Sierra");
+  });
+
   test("isPrivateIp covers RFC1918 and link-local", () => {
     assert.equal(fetchPage.isPrivateIp("10.0.0.1"), true);
     assert.equal(fetchPage.isPrivateIp("192.168.1.1"), true);

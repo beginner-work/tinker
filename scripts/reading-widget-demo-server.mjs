@@ -1,25 +1,25 @@
 #!/usr/bin/env node
 /* Local demo host for reading-widget screenshots.
- * Serves src/renderer static files and mocks /api/reading actions.
+ * Serves src/renderer static files and mocks /api/reading speak/ask/event,
+ * but session create fetches a real public article (default: Sierra eng blog).
  */
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const { fetchPage } = require("../api/_lib/fetch-page.js");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..", "src", "renderer");
 const PORT = Number(process.env.PORT || 8791);
+const DEFAULT_SIERRA_URL =
+  process.env.READING_DEMO_ARTICLE_URL ||
+  "https://sierra.ai/blog/gardening-week-evergreen-engineering";
 
-const SAMPLE_TEXT = [
-  "Tyler Lindow built Tinker as a quiet writing surface.",
-  "This sample essay is first-party demo copy for the reading agent milestone.",
-  "The reader fetches a public URL at runtime, speaks the page aloud, and answers interrupt questions grounded in the article.",
-  "When a question needs a linked source, Claude can fetch that outbound link, then resume where the listener left off.",
-  "Attribution always points back to the original article and its author.",
-].join(" ");
-
-const WORDS = SAMPLE_TEXT.split(/\s+/);
+const sessions = new Map();
 
 function send(res, status, body, headers = {}) {
   const payload = typeof body === "string" ? body : JSON.stringify(body);
@@ -43,14 +43,11 @@ function contentType(filePath) {
 }
 
 function silentMp3Base64() {
-  // Minimal valid-ish MPEG frame placeholder; browsers may no-op play.
   return Buffer.from([
     0xff, 0xfb, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00,
   ]).toString("base64");
 }
-
-const sessions = new Map();
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -69,6 +66,14 @@ function readBody(req) {
   });
 }
 
+function companyHostFromUrl(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://127.0.0.1:${PORT}`);
 
@@ -77,28 +82,41 @@ const server = http.createServer(async (req, res) => {
     try {
       if (action === "session" && req.method === "POST") {
         const body = await readBody(req);
+        const articleUrl = String(body.url || DEFAULT_SIERRA_URL).trim() || DEFAULT_SIERRA_URL;
+        const page = await fetchPage(articleUrl);
         const id = `rs_demo_${Date.now()}`;
-        sessions.set(id, { wordIndex: 0, url: body.url || "" });
+        const words = String(page.text || "").split(/\s+/).filter(Boolean);
+        sessions.set(id, {
+          wordIndex: 0,
+          url: page.sourceUrl,
+          words,
+          title: page.title,
+          author: page.author,
+          attribution: page.attribution,
+        });
         return send(res, 200, {
           sessionId: id,
-          sourceUrl: body.url || "https://lindowlabs.dev/essays/demo",
-          title: "Sample essay for the reading agent",
-          author: "Tyler Lindow",
-          wordCount: WORDS.length,
-          companyHost: "lindowlabs.dev",
-          linkCount: 1,
+          sourceUrl: page.sourceUrl,
+          title: page.title,
+          author: page.author,
+          siteName: page.siteName || "",
+          wordCount: page.wordCount,
+          companyHost: companyHostFromUrl(page.sourceUrl),
+          linkCount: (page.links || []).length,
           voiceId: "ogwqBH5bbF03DSbNiRNN",
-          preview: SAMPLE_TEXT.slice(0, 180),
-          attribution: "Sample essay for the reading agent by Tyler Lindow",
+          preview: (page.paragraphs || []).slice(0, 2).join("\n\n").slice(0, 480),
+          attribution: page.attribution,
           latencyMs: 12,
         });
       }
       if (action === "speak" && req.method === "POST") {
         const body = await readBody(req);
+        const session = sessions.get(body.sessionId) || { words: [], url: DEFAULT_SIERRA_URL };
+        const words = session.words || [];
         const from = Number(body.fromWordIndex) || 0;
-        const to = Math.min(WORDS.length, from + 18);
-        const chunk = WORDS.slice(from, to).join(" ");
-        const done = to >= WORDS.length;
+        const to = Math.min(words.length, from + 18);
+        const chunk = words.slice(from, to).join(" ");
+        const done = to >= words.length;
         return send(res, 200, {
           sessionId: body.sessionId,
           audio: silentMp3Base64(),
@@ -107,23 +125,33 @@ const server = http.createServer(async (req, res) => {
           fromWordIndex: from,
           toWordIndex: to,
           done,
-          wordCount: WORDS.length,
+          wordCount: words.length,
           chunkText: chunk,
-          sourceUrl: "https://lindowlabs.dev/essays/demo",
-          title: "Sample essay for the reading agent",
-          author: "Tyler Lindow",
-          attribution: "Sample essay for the reading agent by Tyler Lindow",
+          sourceUrl: session.url,
+          title: session.title,
+          author: session.author,
+          attribution: session.attribution,
         });
       }
       if (action === "ask" && req.method === "POST") {
         const body = await readBody(req);
+        const session = sessions.get(body.sessionId) || {
+          url: DEFAULT_SIERRA_URL,
+          title: "Gardening Week: Evergreen Engineering",
+          author: "Mihai Parparita",
+          attribution:
+            "Gardening Week: Evergreen Engineering by Mihai Parparita (Sierra)",
+        };
         const resume =
           body.position && typeof body.position.wordIndex === "number"
             ? body.position.wordIndex
             : 18;
+        const answerText =
+          "Sierra's Gardening Week is a dedicated stretch for evergreen engineering work between milestones. " +
+          "Mihai Parparita describes investing in long-term codebase quality while keeping shipping speed. " +
+          "Read the original on sierra.ai.";
         return send(res, 200, {
-          answerText:
-            "In this sample, the reading agent answers from the page itself. It attributes the claim to Tyler and will resume at your interrupt point.",
+          answerText,
           audio: silentMp3Base64(),
           requestId: "demo_ask_1",
           latencyMs: 220,
@@ -131,10 +159,10 @@ const server = http.createServer(async (req, res) => {
           resumeWordIndex: resume,
           fetchedSource: false,
           fetchedSourceUrl: "",
-          sourceUrl: "https://lindowlabs.dev/essays/demo",
-          title: "Sample essay for the reading agent",
-          author: "Tyler Lindow",
-          attribution: "Sample essay for the reading agent by Tyler Lindow",
+          sourceUrl: session.url,
+          title: session.title,
+          author: session.author,
+          attribution: session.attribution,
           linkedInUrl: "https://www.linkedin.com/in/tlindow",
           emailUrl: "mailto:tyler@lindowlabs.dev",
         });
@@ -144,7 +172,9 @@ const server = http.createServer(async (req, res) => {
       }
       return send(res, 404, { error: "unknown action" });
     } catch (err) {
-      return send(res, 500, { error: String(err && err.message) });
+      return send(res, (err && err.status) || 500, {
+        error: String(err && err.message) || "demo error",
+      });
     }
   }
 
@@ -162,5 +192,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`reading-widget demo on http://127.0.0.1:${PORT}/reading-widget/?url=${encodeURIComponent("https://lindowlabs.dev/essays/demo")}`);
+  console.log(
+    `reading-widget demo on http://127.0.0.1:${PORT}/reading-widget/?url=${encodeURIComponent(DEFAULT_SIERRA_URL)}`,
+  );
 });

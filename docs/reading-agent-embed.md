@@ -96,8 +96,21 @@ Tinker:
    for an outbound link when the question needs it.
 5. Logs `sourceUrl` + `companyHost` per session for per-company metrics.
 6. Does **not** check article bodies into git.
+7. Credits the author and links back to the original URL in the widget.
 
-Demo: `https://tinker.beginner.work/reading-widget/?url=https%3A%2F%2Fexample.com%2Fpost`
+### First target source (Sierra)
+
+Milestone 1 demos use a real Sierra engineering post:
+
+`https://sierra.ai/blog/gardening-week-evergreen-engineering`
+
+(title *Gardening Week: Evergreen Engineering*, author Mihai Parparita).
+The widget attributes the piece and the "Original article" footer opens
+that URL. Replace `data-url` with any other public Sierra (or other
+company) post when embedding.
+
+Demo:
+`https://tinker.beginner.work/reading-widget/?url=https%3A%2F%2Fsierra.ai%2Fblog%2Fgardening-week-evergreen-engineering`
 
 ## API surface (Tinker)
 

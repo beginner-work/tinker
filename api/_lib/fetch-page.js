@@ -149,6 +149,41 @@ function extractTitle(html) {
   return "";
 }
 
+function authorsFromJsonLd(html) {
+  const names = [];
+  const re =
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m;
+  while ((m = re.exec(String(html || "")))) {
+    let data;
+    try {
+      data = JSON.parse(m[1]);
+    } catch {
+      continue;
+    }
+    const nodes = [];
+    if (Array.isArray(data)) nodes.push(...data);
+    else if (data && typeof data === "object") {
+      nodes.push(data);
+      if (Array.isArray(data["@graph"])) nodes.push(...data["@graph"]);
+    }
+    for (const node of nodes) {
+      if (!node || typeof node !== "object") continue;
+      const type = String(node["@type"] || "");
+      if (!/Article|BlogPosting|NewsArticle/i.test(type)) continue;
+      const author = node.author;
+      const list = Array.isArray(author) ? author : author ? [author] : [];
+      for (const a of list) {
+        if (typeof a === "string" && a.trim()) names.push(a.trim());
+        else if (a && typeof a === "object" && a.name) {
+          names.push(String(a.name).trim());
+        }
+      }
+    }
+  }
+  return names.filter(Boolean);
+}
+
 function extractAuthor(html) {
   const fromMeta = metaContent(html, [
     "author",
@@ -158,6 +193,8 @@ function extractAuthor(html) {
     "sailthru.author",
   ]);
   if (fromMeta && !/^https?:/i.test(fromMeta)) return fromMeta.slice(0, 200);
+  const ld = authorsFromJsonLd(html);
+  if (ld.length) return ld.join(", ").slice(0, 200);
   const rel = String(html || "").match(
     /<a[^>]+rel=["'][^"']*author[^"']*["'][^>]*>([\s\S]*?)<\/a>/i,
   );
@@ -170,6 +207,13 @@ function extractAuthor(html) {
     if (t && t.length < 120) return t;
   }
   return "";
+}
+
+function extractSiteName(html) {
+  return metaContent(html, ["og:site_name", "application-name", "twitter:site"]).replace(
+    /^@/,
+    "",
+  );
 }
 
 function extractMainHtml(html) {
@@ -284,6 +328,7 @@ async function fetchPage(url, { fetchFn, lookupFn } = {}) {
   const html = buf.toString("utf8");
   const title = extractTitle(html) || parsed.hostname;
   const author = extractAuthor(html);
+  const siteName = extractSiteName(html);
   const mainHtml = extractMainHtml(html);
   let text = stripTags(mainHtml).slice(0, MAX_TEXT_CHARS);
   if (text.length < 80) {
@@ -297,12 +342,18 @@ async function fetchPage(url, { fetchFn, lookupFn } = {}) {
   const links = extractLinks(mainHtml || html, finalUrl);
   const paragraphs = paragraphsFromText(text);
   const words = wordsFromText(text);
+  const attribution = [title, author ? `by ${author}` : "", siteName ? `(${siteName})` : ""]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
 
   return {
     sourceUrl: finalUrl,
     requestedUrl: parsed.href,
     title,
     author,
+    siteName,
+    attribution: attribution || title || finalUrl,
     text,
     paragraphs,
     wordCount: words.length,
@@ -322,6 +373,8 @@ module.exports = {
   stripTags,
   extractTitle,
   extractAuthor,
+  extractSiteName,
+  authorsFromJsonLd,
   extractMainHtml,
   extractLinks,
   paragraphsFromText,

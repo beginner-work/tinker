@@ -441,21 +441,28 @@ async function createSession(prismaClient, { url, caller, fetchPageFn }) {
     }
   }
 
+  const attribution =
+    page.attribution ||
+    [page.title, page.author ? `by ${page.author}` : "", page.siteName ? `(${page.siteName})` : ""]
+      .filter(Boolean)
+      .join(" ")
+      .trim() ||
+    page.sourceUrl;
+
   return {
     sessionId: id,
     sourceUrl: page.sourceUrl,
     requestedUrl: page.requestedUrl,
     title: page.title,
     author: page.author,
+    siteName: page.siteName || "",
     wordCount: page.wordCount,
     companyHost: data.companyHost,
     linkCount: (page.links || []).length,
     voiceId,
     // Short preview only; full text stays server-side / ephemeral cache.
     preview: page.paragraphs.slice(0, 2).join("\n\n").slice(0, 480),
-    attribution: page.author
-      ? `${page.title} by ${page.author}`
-      : page.title || page.sourceUrl,
+    attribution,
   };
 }
 

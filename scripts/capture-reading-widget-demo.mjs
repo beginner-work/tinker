@@ -7,10 +7,12 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = "/opt/cursor/artifacts";
+const SIERRA_URL =
+  process.env.READING_DEMO_ARTICLE_URL ||
+  "https://sierra.ai/blog/gardening-week-evergreen-engineering";
 const BASE =
   process.env.READING_DEMO_URL ||
-  "http://127.0.0.1:8791/reading-widget/?url=" +
-    encodeURIComponent("https://lindowlabs.dev/essays/demo");
+  "http://127.0.0.1:8791/reading-widget/?url=" + encodeURIComponent(SIERRA_URL);
 
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -34,7 +36,7 @@ await page.screenshot({
 await page.click("[data-rw-interrupt]");
 await page.fill(
   "[data-rw-question]",
-  "What does this sample say the reader does after an interrupt?",
+  "What is Gardening Week at Sierra, according to this post?",
 );
 await page.screenshot({
   path: path.join(OUT, "reading-widget-interrupt.png"),
