@@ -21,6 +21,14 @@ PR from this repo**; copy the snippet below into that site when ready.
   voice). The reader uses stock Savvy (`ogwqBH5bbF03DSbNiRNN`) unless
   `READING_VOICE_ID` overrides it on Production.
 
+## Resume metrics
+
+Definitions and event-name contract: [`RESUME_METRICS.md`](../RESUME_METRICS.md).
+The embed script passes the parent hostname as `embedHost` into the iframe
+so SDK embed-host counts exclude Tinker's own origin. Owner QA uses
+`?owner=1` (or `data-owner="1"` on the script tag) so those sessions are
+dropped from resume numbers.
+
 ## Recommended: iframe via script tag
 
 On the target essay page in `tlindow/lindowlabs`, add:
