@@ -20,10 +20,11 @@ Read-only aggregate: `GET /api/metrics` (service token or owner session).
    file and `src/renderer/lib/metrics/events.js` drift apart (missing or
    extra names). Do not call `@vercel/analytics` `track()` ad hoc with
    these names.
-2. **Goal numbers live only in files named `DO_NOT_PUBLISH`.** Never
-   commit goal targets or achieved results into this repo as published
-   facts. This file defines *how* to measure; it does not store *what
-   we hit*.
+2. **Goal numbers live only in private `DO_NOT_PUBLISH*` files** (the
+   private Lindow Labs pack / `TINKER_PRIVATE_DIR`), never on the public
+   default branch. Never commit goal targets or achieved results into
+   this public repo as published facts. This file defines *how* to
+   measure; it does not store *what we hit*.
 3. **Owner traffic is always excluded.** Owner means explicit
    `?owner=1` (and the matching `isOwner` flag on persisted rows).
    Untagged traffic is never the owner. Server emit, client

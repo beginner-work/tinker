@@ -37,6 +37,11 @@ evals/ednet-zpd/.cache/
 evals/private-config/**
 !evals/private-config/.gitkeep
 
+# Local checkout of the private Lindow Labs pack (never commit)
+/lindowlabs-private/
+DO_NOT_PUBLISH*
+!RESUME_METRICS.md
+
 # Experiment log append-only file can grow; keep the counter + README.
 # Allow committing the jsonl if desired for shared loop history; ignore local scratch:
 evals/experiment-log/*.local.jsonl

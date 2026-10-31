@@ -5,14 +5,19 @@
  *   prompt.md    — system instructions (without the corpus body)
  *   corpus/*     — plain-text / markdown documents Tinker stores
  *
- * Sources are loaded from disk at require-time (Vercel bundles the
- * folder with the function). Unknown sourceIds return null.
+ * Lookup order:
+ *   1. $TINKER_PRIVATE_DIR/api/_lib/ask-sources/<sourceId>/
+ *   2. this directory (public stubs / demos only)
+ *
+ * Private Lindow Labs corpora are not redistributed in the public repo.
+ * Unknown sourceIds return null.
  */
 
 "use strict";
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { privateRoot } = require("../private-dir.js");
 
 const ROOT = __dirname;
 // Stock ElevenLabs premade (Savvy - Warm, Grounded & Natural). Never use a
@@ -20,15 +25,23 @@ const ROOT = __dirname;
 const DEFAULT_VOICE_ID = "ogwqBH5bbF03DSbNiRNN";
 
 function listSourceDirs() {
-  let entries = [];
-  try {
-    entries = fs.readdirSync(ROOT, { withFileTypes: true });
-  } catch {
-    return [];
+  const names = new Set();
+  const roots = [];
+  const priv = privateRoot();
+  if (priv) roots.push(path.join(priv, "api", "_lib", "ask-sources"));
+  roots.push(ROOT);
+  for (const root of roots) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(root, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      if (e.isDirectory() && !e.name.startsWith(".")) names.add(e.name);
+    }
   }
-  return entries
-    .filter((e) => e.isDirectory() && !e.name.startsWith("."))
-    .map((e) => e.name);
+  return [...names].sort();
 }
 
 function readText(filePath) {
@@ -70,12 +83,17 @@ function formatCorpus(docs) {
     .join("\n\n---\n\n");
 }
 
-function loadSource(sourceId) {
-  const id = String(sourceId || "").trim();
-  if (!id || id.includes("..") || id.includes("/") || id.includes("\\")) {
-    return null;
+function candidateDirs(sourceId) {
+  const dirs = [];
+  const priv = privateRoot();
+  if (priv) {
+    dirs.push(path.join(priv, "api", "_lib", "ask-sources", sourceId));
   }
-  const dir = path.join(ROOT, id);
+  dirs.push(path.join(ROOT, sourceId));
+  return dirs;
+}
+
+function loadSourceFromDir(id, dir) {
   if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return null;
 
   let meta = {};
@@ -91,7 +109,7 @@ function loadSource(sourceId) {
   const corpusText = formatCorpus(docs);
   return {
     id: meta.id || id,
-    label: meta.label || "Tyler's agent",
+    label: meta.label || "Demo agent",
     site: meta.site || "",
     linkedinUrl: meta.linkedinUrl || "https://www.linkedin.com/in/tlindow",
     voiceId: meta.voiceId || DEFAULT_VOICE_ID,
@@ -100,7 +118,20 @@ function loadSource(sourceId) {
     docs,
     corpusText,
     systemPrompt: `${prompt}\n\n---\nCORPUS\n---\n\n${corpusText}`,
+    loadedFrom: dir,
   };
+}
+
+function loadSource(sourceId) {
+  const id = String(sourceId || "").trim();
+  if (!id || id.includes("..") || id.includes("/") || id.includes("\\")) {
+    return null;
+  }
+  for (const dir of candidateDirs(id)) {
+    const loaded = loadSourceFromDir(id, dir);
+    if (loaded) return loaded;
+  }
+  return null;
 }
 
 function listSources() {
@@ -115,4 +146,5 @@ module.exports = {
   listSources,
   formatCorpus,
   loadCorpusDir,
+  candidateDirs,
 };

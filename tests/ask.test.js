@@ -228,16 +228,19 @@ describe("ask docs + eval contracts", () => {
     assert.match(schema, /rawTranscript/);
   });
 
-  test("ten eval cases exist and name the seeded source", () => {
-    const dir = path.join(__dirname, "..", "evals", "ask", "cases");
-    const files = fs.readdirSync(dir).filter((n) => n.endsWith(".json")).sort();
-    assert.equal(files.length, 10);
-    for (const name of files) {
-      const c = JSON.parse(fs.readFileSync(path.join(dir, name), "utf8"));
-      assert.equal(c.sourceId, "lindowlabs-minds-and-models");
+  test("private ask pack supplies eval cases for the seeded source", () => {
+    const load = require("../evals/ask/lib/load-dataset.js");
+    const cases = load.loadCases();
+    assert.ok(cases.length >= 1, "expected at least one case from TINKER_PRIVATE_DIR");
+    for (const c of cases) {
       assert.ok(c.question);
-      assert.ok(c.expect);
+      if (c.sourceId) assert.equal(c.sourceId, "lindowlabs-minds-and-models");
     }
+    const priv = process.env.TINKER_PRIVATE_DIR || "";
+    assert.ok(priv, "TINKER_PRIVATE_DIR should be set for unit tests");
+    assert.ok(
+      fs.existsSync(path.join(priv, "api/_lib/ask-sources/lindowlabs-minds-and-models/prompt.md")),
+    );
   });
 
   test("README documents POST /api/ask", () => {

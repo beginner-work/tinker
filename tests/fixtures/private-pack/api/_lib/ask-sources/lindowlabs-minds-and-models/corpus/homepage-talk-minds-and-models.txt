@@ -1,0 +1,5 @@
+Minds and Models
+
+Tyler Lindow opens with how mental models shape product judgment.
+What would you build if you treated learning as the product?
+Working memory and chess metaphors follow.

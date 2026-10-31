@@ -9,8 +9,27 @@ const path = require("node:path");
 const { callAnthropic } = require("../../../api/_lib/anthropic.js");
 const models = require("../../../src/renderer/lib/claude-models.js");
 
-const RUBRIC_PATH = path.join(__dirname, "..", "rubric-agreement.md");
-const RUBRIC_GROUNDING_PATH = path.join(__dirname, "..", "rubric.md");
+function resolveAskFile(...parts) {
+  const envDir = String(process.env.TINKER_EVAL_ASK_DIR || "").trim();
+  const priv = String(process.env.TINKER_PRIVATE_DIR || "").trim();
+  const roots = [];
+  if (envDir) roots.push(path.resolve(envDir));
+  if (priv) roots.push(path.join(path.resolve(priv), "evals", "ask"));
+  roots.push(path.join(__dirname, ".."));
+  for (const root of roots) {
+    const file = path.join(root, ...parts);
+    if (fs.existsSync(file)) return file;
+  }
+  return path.join(__dirname, "..", ...parts);
+}
+
+function rubricAgreementPath() {
+  return resolveAskFile("rubric-agreement.md");
+}
+
+function rubricGroundingPath() {
+  return resolveAskFile("rubric.md");
+}
 
 function countSentences(text) {
   const t = String(text || "").trim();
@@ -148,7 +167,7 @@ async function TylerAgreement({ input, output, expected }) {
       metadata: { error: "ANTHROPIC_API_KEY missing; not fabricating a pass" },
     };
   }
-  const rubric = fs.readFileSync(RUBRIC_PATH, "utf8");
+  const rubric = fs.readFileSync(rubricAgreementPath(), "utf8");
   const result = await callAnthropic({
     system: rubric,
     messages: [
@@ -199,8 +218,9 @@ async function GroundingJudge({ input, output, expected }) {
       metadata: { error: "ANTHROPIC_API_KEY missing; not fabricating a pass" },
     };
   }
-  const rubric = fs.existsSync(RUBRIC_GROUNDING_PATH)
-    ? fs.readFileSync(RUBRIC_GROUNDING_PATH, "utf8")
+  const groundingPath = rubricGroundingPath();
+  const rubric = fs.existsSync(groundingPath)
+    ? fs.readFileSync(groundingPath, "utf8")
     : "Score pass/fail JSON for grounded ask answers.";
   const question =
     (input && (input.question || input)) || (expected && expected.question) || "";
