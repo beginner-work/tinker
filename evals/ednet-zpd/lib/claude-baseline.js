@@ -3,17 +3,21 @@
 /**
  * Plain-Claude ZPD band baseline (no agent modeling).
  * Instructions loaded from versioned eval config.
+ * Routes via Vercel AI Gateway when gateway auth is present;
+ * otherwise Anthropic direct with ANTHROPIC_API_KEY.
  */
 
 const {
   loadEvalConfig,
   renderTemplate,
 } = require("../../config/load.js");
+const {
+  callClaudeMessages,
+  resolveClaudeTransport,
+} = require("../../lib/claude-client.js");
 
-const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
-
-function anthropicKey(env) {
-  return String((env || process.env).ANTHROPIC_API_KEY || "").trim();
+function claudeAvailable(env) {
+  return resolveClaudeTransport(env || process.env).available;
 }
 
 function formatHistory(probe) {
@@ -32,47 +36,40 @@ function formatHistory(probe) {
  */
 async function classifyProbeWithClaude(probe, opts) {
   const env = (opts && opts.env) || process.env;
-  const key = anthropicKey(env);
-  if (!key) {
-    return { skipped: true, reason: "ANTHROPIC_API_KEY missing" };
+  if (!claudeAvailable(env)) {
+    return {
+      skipped: true,
+      reason:
+        "Claude unavailable: set AI_GATEWAY_API_KEY (or VERCEL_OIDC_TOKEN) or ANTHROPIC_API_KEY",
+    };
   }
   const pack = opts && opts.config ? opts.config : loadEvalConfig({ env });
   const tpl = pack.claudeZpdBand;
-  const fetchFn = (opts && opts.fetchFn) || globalThis.fetch;
-  const model = (opts && opts.model) || env.ASK_MODEL || DEFAULT_MODEL;
   const user = renderTemplate(tpl.userTemplate, {
     conceptId: probe.conceptId,
     history: formatHistory(probe) || "(empty)",
   });
 
-  const res = await fetchFn("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 20,
-      temperature: 0,
-      system: tpl.system,
-      messages: [{ role: "user", content: user }],
-    }),
+  const result = await callClaudeMessages({
+    system: tpl.system,
+    user,
+    maxTokens: 20,
+    temperature: 0,
+    model: opts && opts.model,
+    env,
+    fetchFn: opts && opts.fetchFn,
   });
-  const json = await res.json();
-  if (!res.ok) {
-    throw new Error(
-      (json && json.error && json.error.message) || `Anthropic HTTP ${res.status}`,
-    );
+  if (result.skipped) {
+    return result;
   }
-  const text = Array.isArray(json.content)
-    ? json.content
-        .filter((b) => b.type === "text")
-        .map((b) => b.text)
-        .join("")
-    : "";
-  return { skipped: false, band: parseBand(text), raw: text, model, version: pack.version };
+  return {
+    skipped: false,
+    band: parseBand(result.text),
+    raw: result.text,
+    model: result.model,
+    provider: result.provider,
+    version: pack.version,
+  };
 }
 
 function parseBand(text) {
@@ -88,10 +85,11 @@ function parseBand(text) {
  * @param {{ fetchFn?: typeof fetch, env?: NodeJS.ProcessEnv, limit?: number, config?: object }} [opts]
  */
 async function runClaudeBaseline(probes, opts) {
-  if (!anthropicKey(opts && opts.env)) {
+  if (!claudeAvailable(opts && opts.env)) {
     return {
       skipped: true,
-      reason: "ANTHROPIC_API_KEY missing",
+      reason:
+        "Claude unavailable: set AI_GATEWAY_API_KEY (or VERCEL_OIDC_TOKEN) or ANTHROPIC_API_KEY",
       yTrue: [],
       yPred: [],
       labels: [],
@@ -140,7 +138,10 @@ async function runClaudeBaseline(probes, opts) {
 }
 
 module.exports = {
-  anthropicKey,
+  claudeAvailable,
+  /** @deprecated use claudeAvailable */
+  anthropicKey: (env) =>
+    claudeAvailable(env) ? "present" : "",
   classifyProbeWithClaude,
   runClaudeBaseline,
   parseBand,

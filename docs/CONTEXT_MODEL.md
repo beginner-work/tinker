@@ -4,17 +4,19 @@ Tinker is **not an LLM**. It is a context model of what a user understands:
 a graph of concepts where each user-concept node carries a **depth** estimate
 and a **confidence**, updated from fine-grained signals.
 
-Claude (Anthropic API) handles language. **Jev** (TypeSafe System One) handles
-typed scoring:
+Claude (Anthropic API, optionally via Vercel AI Gateway) handles language.
+**Jev** (TypeSafe System One) handles typed scoring, called **only** through
+Vercel AI Gateway:
 
 - **Score** for depth level with per-level probabilities
 - **Noul** for "is this source just past the learner's depth"
 
-Jev is called as `typesafe/jev-latest` via OpenRouter
-(`POST https://openrouter.ai/api/v1/systemone`) or as `jev-latest` via
-`POST https://api.typesafe.ai/v1/systemone`. Docs:
-[docs.typesafe.ai](https://docs.typesafe.ai),
-[OpenRouter Jev guide](https://openrouter.ai/docs/guides/community/jev).
+Jev model id: `typesafe-ai/jev` (evals pin `typesafe-ai/jev-1.14.0` via
+`JEV_EVAL_PIN=1` / `JEV_MODEL`). Endpoint:
+`POST https://ai-gateway.vercel.sh/typesafe/v1/systemone`. Auth:
+`AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN`. Docs:
+[AI Gateway TypeSafe](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe),
+[docs.typesafe.ai](https://docs.typesafe.ai).
 
 Headline product metric: accuracy at placing each concept in the learner's
 zone of proximal development (`too_easy` / `in_zpd` / `too_hard`). Benchmarks
@@ -44,7 +46,7 @@ See `evals/config/README.md` and `evals/experiment-log/README.md`.
 signals (honest statement, reading, ask, skip, response, …)
         │
         ▼
-┌───────────────────────┐     optional Jev Score (versioned criteria)
+┌───────────────────────┐     optional Jev Score via AI Gateway
 │  @tinker/context-model │◄──── depth levels + confidence
 │  updateBelief / graph  │
 └───────────┬───────────┘
@@ -55,14 +57,14 @@ signals (honest statement, reading, ask, skip, response, …)
             ▼
    classifyZpdBand / recommendSources
             │
-            ├── optional Jev Noul (versioned)
+            ├── optional Jev Noul (AI Gateway)
             └── GET /api/context-model  (user-visible inferences)
 ```
 
 ### Package
 
 `packages/context-model` holds pure logic: schema, signals, update, ZPD,
-Jev client, recommend.
+Jev client (AI Gateway), recommend.
 
 ### Persistence
 
@@ -86,15 +88,15 @@ npm run eval:ednet-zpd             # default: dev split, v0 baseline
 EVAL_SPLIT=test npm run eval:ednet-zpd:test   # rare held-out
 ```
 
-Fixed sample: seed `42`, 40 users, 400 events/user (`SAMPLE.md`). Synthetic
+Fixed sample: seed `42`, 200 users, 1500 events/user (`SAMPLE.md`). Synthetic
 fixture used when cache is empty.
 
 Ground truth: correct unaided → `too_easy`; wrong then correct after
 lecture/explanation → `in_zpd`; still wrong after help → `too_hard`.
 
-Baselines: Tinker context model, Claude band (keyed), BKT (always).
-Stretch: softmax classifier on Jev probability vectors (train fit, dev/test
-score); offline uses a depth-bin proxy when Jev is absent.
+Baselines: Claude-only band (keyed), **Jev+Claude** v0 (no agent modeling;
+keyed via AI Gateway), BKT (always). Offline also reports local Tinker
+heuristic + stretch softmax-on-Jev-probs.
 
 ### Source ZPD (`evals/source-zpd`) (INTERNAL)
 
@@ -116,10 +118,22 @@ npm run eval:ednet-zpd
 npm run eval:source-zpd
 ```
 
-Optional secrets: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY` or
-`TYPESAFE_API_KEY`, `BRAINTRUST_API_KEY`.
+GitHub Actions keyed evals need only `AI_GATEWAY_API_KEY` (Jev + Claude via
+`anthropic/claude-*` on the gateway) and `BRAINTRUST_API_KEY` (logging).
+`ANTHROPIC_API_KEY` is not wired in Actions. Locally, an Anthropic key remains
+an optional Claude fallback if the gateway is unset. On Vercel deploys,
+`VERCEL_OIDC_TOKEN` can replace the gateway API key. Mirror from Vercel
+**Production** only - never Preview.
 
 Workflow: `.github/workflows/context-model-eval.yml`.
+
+- Unit job must pass before offline/keyed evals (`needs`)
+- Offline EdNet/source always run; keyed runs on every `main` push, and on
+  PRs only when `packages/context-model/`, `evals/`, `api/context-model*`,
+  `prisma/schema.prisma`, or the workflow file change
+- Dev-split ZPD band accuracy / macro-F1 must not drop more than
+  `EVAL_BASELINE_TOLERANCE` (default `0.02`) below the last recorded line in
+  `evals/experiment-log/experiments.jsonl`
 
 ## Results policy
 

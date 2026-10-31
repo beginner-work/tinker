@@ -2,43 +2,51 @@
 
 const { DEPTH_LEVELS, DEPTH_MAX_LEVEL } = require("./schema.js");
 const { depthFromJevScore } = require("./update.js");
+const {
+  AI_GATEWAY_SYSTEMONE,
+  resolveGatewayAuth,
+} = require("./gateway.js");
 
-const OPENROUTER_SYSTEMONE = "https://openrouter.ai/api/v1/systemone";
-const TYPESAFE_SYSTEMONE = "https://api.typesafe.ai/v1/systemone";
-const DEFAULT_MODEL = "jev-latest";
-const OPENROUTER_MODEL = "typesafe/jev-latest";
+/** Floating / product default on AI Gateway. */
+const DEFAULT_MODEL = "typesafe-ai/jev";
+/** Pinned for eval reproducibility (set JEV_MODEL or eval runners pin this). */
+const EVAL_PINNED_MODEL = "typesafe-ai/jev-1.14.0";
 
 /**
- * Resolve which System One endpoint and key to use.
- * Prefers TYPESAFE_API_KEY → api.typesafe.ai; else OPENROUTER_API_KEY.
+ * Resolve Jev via Vercel AI Gateway only (TypeSafe System One surface).
+ * Auth: AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN.
+ *
+ * @param {NodeJS.ProcessEnv} [env]
  */
 function resolveJevConfig(env) {
   const e = env || process.env;
-  const typesafeKey = String(e.TYPESAFE_API_KEY || "").trim();
-  const openRouterKey = String(e.OPENROUTER_API_KEY || "").trim();
-  if (typesafeKey) {
+  const auth = resolveGatewayAuth(e);
+  if (!auth.available) {
     return {
-      available: true,
-      baseUrl: String(e.TYPESAFE_SYSTEMONE_URL || TYPESAFE_SYSTEMONE).trim(),
-      apiKey: typesafeKey,
-      model: String(e.JEV_MODEL || DEFAULT_MODEL).trim(),
-      provider: "typesafe",
+      available: false,
+      baseUrl: "",
+      apiKey: "",
+      model: "",
+      provider: null,
+      authSource: null,
     };
   }
-  if (openRouterKey) {
-    return {
-      available: true,
-      baseUrl: String(e.OPENROUTER_SYSTEMONE_URL || OPENROUTER_SYSTEMONE).trim(),
-      apiKey: openRouterKey,
-      model: String(e.JEV_MODEL || OPENROUTER_MODEL).trim(),
-      provider: "openrouter",
-    };
-  }
-  return { available: false, baseUrl: "", apiKey: "", model: "", provider: null };
+  // Eval runners set JEV_EVAL_PIN=1 (or JEV_MODEL) for reproducibility.
+  const pinEval =
+    String(e.JEV_EVAL_PIN || e.TINKER_EVAL_PIN_JEV || "").trim() === "1";
+  const defaultModel = pinEval ? EVAL_PINNED_MODEL : DEFAULT_MODEL;
+  return {
+    available: true,
+    baseUrl: String(e.JEV_SYSTEMONE_URL || AI_GATEWAY_SYSTEMONE).trim(),
+    apiKey: auth.token,
+    model: String(e.JEV_MODEL || defaultModel).trim(),
+    provider: "ai-gateway",
+    authSource: auth.source,
+  };
 }
 
 /**
- * Low-level System One call (Score / Noul / Choice).
+ * Low-level System One call (Score / Noul / Choice) through AI Gateway.
  * @param {{ state: unknown, questions: Record<string, unknown>, model?: string }} body
  * @param {{ fetchFn?: typeof fetch, env?: NodeJS.ProcessEnv }} [opts]
  */
@@ -47,7 +55,7 @@ async function systemOne(body, opts) {
   if (!cfg.available) {
     throw Object.assign(
       new Error(
-        "Jev unavailable: set TYPESAFE_API_KEY or OPENROUTER_API_KEY",
+        "Jev unavailable: set AI_GATEWAY_API_KEY (or VERCEL_OIDC_TOKEN on Vercel)",
       ),
       { code: "JEV_UNAVAILABLE" },
     );
@@ -94,7 +102,7 @@ async function systemOne(body, opts) {
 /**
  * Score learner depth. Prefer a versioned question from eval config.
  *
- * @param {{ conceptTitle: string, state: unknown, question?: object }} input
+ * @param {{ conceptTitle: string, state: unknown, question?: object, model?: string }} input
  * @param {{ fetchFn?: typeof fetch, env?: NodeJS.ProcessEnv }} [opts]
  */
 async function scoreDepth(input, opts) {
@@ -107,6 +115,7 @@ async function scoreDepth(input, opts) {
   const response = await systemOne(
     {
       state: input.state,
+      model: input.model,
       questions: {
         depth: {
           type: "score",
@@ -134,7 +143,7 @@ async function scoreDepth(input, opts) {
 
 /**
  * Noul: is this source just past the learner's current depth?
- * @param {{ state: unknown, sourceTitle?: string, question?: object, threshold?: number }} input
+ * @param {{ state: unknown, sourceTitle?: string, question?: object, threshold?: number, model?: string }} input
  * @param {{ fetchFn?: typeof fetch, env?: NodeJS.ProcessEnv }} [opts]
  */
 async function noulSourceInZpd(input, opts) {
@@ -152,6 +161,7 @@ async function noulSourceInZpd(input, opts) {
   const response = await systemOne(
     {
       state: input.state,
+      model: input.model,
       questions: {
         just_past_depth: {
           type: "noul",
@@ -181,10 +191,9 @@ function clamp01(x) {
 }
 
 module.exports = {
-  OPENROUTER_SYSTEMONE,
-  TYPESAFE_SYSTEMONE,
+  AI_GATEWAY_SYSTEMONE,
   DEFAULT_MODEL,
-  OPENROUTER_MODEL,
+  EVAL_PINNED_MODEL,
   DEPTH_MAX_LEVEL,
   resolveJevConfig,
   systemOne,

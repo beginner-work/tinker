@@ -1,7 +1,7 @@
 /**
  * Braintrust eval for EdNet ZPD band accuracy.
- * Offline Tinker + BKT always score. Claude is not required here
- * (see run.js for the Claude baseline when ANTHROPIC_API_KEY is set).
+ * Offline Tinker + BKT always score. Claude/Jev keyed baselines live in run.js
+ * (AI Gateway). Tinker depth→band cuts are calibrated on train only.
  */
 import { Eval } from "braintrust";
 import { createRequire } from "node:module";
@@ -11,9 +11,17 @@ const { loadLabeledProbes } = require("./lib/sample.js");
 const { runTinkerBaseline } = require("./lib/tinker-baseline.js");
 const { runBktBaseline } = require("./lib/bkt.js");
 const { scoreBands } = require("./lib/metrics.js");
+const { splitByKey, splitSeed } = require("../lib/splits.js");
 
 const labeled = loadLabeledProbes();
-const probes = (labeled.probes || []).slice(0, 80);
+const allProbes = labeled.probes || [];
+const splits = splitByKey(
+  allProbes,
+  (p: { userId: string; conceptId: string }) => `${p.userId}::${p.conceptId}`,
+  { seed: splitSeed(process.env) },
+);
+const trainProbes = splits.train || [];
+const probes = (splits.dev || allProbes).slice(0, 80);
 
 const rows = probes.map((p: {
   userId: string;
@@ -44,7 +52,7 @@ Eval("tinker-ednet-zpd", {
   data: () => rows,
   task: async (input) => {
     const probe = probes[input.index];
-    const tinker = runTinkerBaseline([probe]);
+    const tinker = runTinkerBaseline([probe], { calibrateFrom: trainProbes });
     const bkt = runBktBaseline([probe]);
     return {
       tinkerBand: tinker.yPred[0],
@@ -63,7 +71,7 @@ Eval("tinker-ednet-zpd", {
   ],
 });
 
-const tinkerAll = runTinkerBaseline(probes);
+const tinkerAll = runTinkerBaseline(probes, { calibrateFrom: trainProbes });
 const bktAll = runBktBaseline(probes);
 console.error(
   "[ednet-zpd] offline",
@@ -71,5 +79,6 @@ console.error(
     source: labeled.source,
     tinker: scoreBands(tinkerAll.yTrue, tinkerAll.yPred),
     bkt: scoreBands(bktAll.yTrue, bktAll.yPred),
+    thresholds: tinkerAll.thresholds,
   }),
 );

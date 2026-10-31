@@ -15,4 +15,27 @@ Each iteration of the baseline loop appends one JSON line to
 `test-eval-count.json` mirrors the count. **Do not** evaluate test during
 normal tuning. Use `EVAL_SPLIT=test` or `--test` deliberately.
 
-Train is for fitting optional downstream models only; the loop reads **dev**.
+Train is for fitting optional downstream models only (including Tinker
+depth→band cut calibration); the loop scores **dev**. Never fit thresholds
+on test.
+
+## CI regression gate
+
+`.github/workflows/context-model-eval.yml` fails when **dev-split** EdNet ZPD
+band **accuracy** or **macro-F1** for a comparable system (`tinker`, `bkt`,
+and keyed `claude` / `jevClaude` when present) drops more than the absolute
+tolerance below the last recorded `devScore` in this file.
+
+| Knob | Default | Meaning |
+| --- | --- | --- |
+| `EVAL_BASELINE_TOLERANCE` | `0.02` | Allowed absolute drop on [0,1] scores (2 percentage points) |
+
+Implementation: `evals/lib/check-baseline-regression.js`. CI snapshots this
+log **before** the run so the gate compares against the committed baseline,
+not the line just appended. Comparisons are **source-matched**
+(`meta.source` / report `source`): a CI `synthetic-fixture` run is not gated
+against an `ednet-kt3` baseline, and the reverse is also skipped.
+
+Push to `main` always runs the offline eval (and keyed when secrets exist)
+and appends a new log line in the job workspace; merge PRs that update
+`experiments.jsonl` to persist a new recorded baseline in git.

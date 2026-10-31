@@ -27,10 +27,18 @@ Eval("tinker-source-zpd", {
     const c = cases[input.index];
     const tinker = await runTinkerCase(c, { useJev: false });
     let claude;
-    if (process.env.ANTHROPIC_API_KEY) {
+    if (
+      process.env.AI_GATEWAY_API_KEY ||
+      process.env.VERCEL_OIDC_TOKEN ||
+      process.env.ANTHROPIC_API_KEY
+    ) {
       claude = await runClaudeCase(c);
     } else {
-      claude = { skipped: true, reason: "ANTHROPIC_API_KEY missing", hit: false };
+      claude = {
+        skipped: true,
+        reason: "AI_GATEWAY_API_KEY|ANTHROPIC_API_KEY missing",
+        hit: false,
+      };
     }
     return { tinker, claude };
   },

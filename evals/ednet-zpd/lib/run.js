@@ -4,6 +4,7 @@ const { loadLabeledProbes } = require("./sample.js");
 const { runTinkerBaseline } = require("./tinker-baseline.js");
 const { runBktBaseline } = require("./bkt.js");
 const { runClaudeBaseline } = require("./claude-baseline.js");
+const { runJevClaudeBaseline } = require("./jev-claude-baseline.js");
 const { scoreBands, rocAuc } = require("./metrics.js");
 const { splitByKey, activeSplit, splitSeed } = require("../../lib/splits.js");
 const { appendExperiment, readTestEvalCount } = require("../../lib/experiment-log.js");
@@ -55,14 +56,43 @@ async function runEdnetZpd(opts) {
   const probes = splits[splitName] || [];
   const trainProbes = splits.train || [];
 
-  const tinker = runTinkerBaseline(probes);
+  const keyedLimit =
+    (opts && opts.claudeLimit) ||
+    Math.min(
+      Number(env.EVAL_KEYED_LIMIT || 30) || 30,
+      probes.length,
+    );
+  // Calibrate depth→band cuts on train only (never fit on the eval split).
+  const tinker = runTinkerBaseline(probes, { calibrateFrom: trainProbes });
+  if (tinker.diagnostics) {
+    console.error(tinker.diagnostics);
+    console.error(
+      `[tinker] thresholds lo=${tinker.thresholds.lo} hi=${tinker.thresholds.hi} method=${tinker.thresholds.method}`,
+    );
+  }
   const bkt = runBktBaseline(probes);
   const claude = await runClaudeBaseline(probes, {
     env,
     fetchFn: opts && opts.fetchFn,
     config: pack,
-    limit: (opts && opts.claudeLimit) || Math.min(30, probes.length),
+    limit: keyedLimit,
   });
+  const jevClaude =
+    opts && opts.skipJevClaude
+      ? {
+          skipped: true,
+          reason: "skipJevClaude",
+          yTrue: [],
+          yPred: [],
+          labels: [],
+          scores: [],
+        }
+      : await runJevClaudeBaseline(probes, {
+          env,
+          fetchFn: opts && opts.fetchFn,
+          config: pack,
+          limit: (opts && opts.jevClaudeLimit) || keyedLimit,
+        });
 
   // Stretch: classical model on synthetic/proxy "Jev-like" probs from depth
   // bins when real Jev vectors are absent (offline). Real Jev probs plug in
@@ -87,10 +117,18 @@ async function runEdnetZpd(opts) {
     classical = fitAndScore(trainRows, evalRows, { epochs: 40 });
   }
 
+  const tinkerSummary = {
+    ...summarize("tinker-context-model", tinker),
+    thresholds: tinker.thresholds || null,
+    confusion: tinker.confusion || null,
+    trueDistribution: tinker.trueDistribution || null,
+    predDistribution: tinker.predDistribution || null,
+  };
   const baselines = {
-    tinker: summarize("tinker-context-model", tinker),
+    tinker: tinkerSummary,
     bkt: summarize("bkt", { ...bkt, skipped: false }),
     claude: summarize("claude-band", claude),
+    jevClaude: summarize("jev+claude", jevClaude),
     classicalOnJev: classical
       ? {
           name: "softmax-on-jev-probs",
@@ -107,7 +145,20 @@ async function runEdnetZpd(opts) {
     tinkerAccuracy: baselines.tinker.accuracy,
     tinkerMacroF1: baselines.tinker.macroF1,
     bktAccuracy: baselines.bkt.accuracy,
+    bktMacroF1: baselines.bkt.macroF1,
+    bktAuc: baselines.bkt.nextResponseAuc,
     claudeAccuracy: baselines.claude.skipped ? null : baselines.claude.accuracy,
+    claudeMacroF1: baselines.claude.skipped ? null : baselines.claude.macroF1,
+    claudeAuc: baselines.claude.skipped ? null : baselines.claude.nextResponseAuc,
+    jevClaudeAccuracy: baselines.jevClaude.skipped
+      ? null
+      : baselines.jevClaude.accuracy,
+    jevClaudeMacroF1: baselines.jevClaude.skipped
+      ? null
+      : baselines.jevClaude.macroF1,
+    jevClaudeAuc: baselines.jevClaude.skipped
+      ? null
+      : baselines.jevClaude.nextResponseAuc,
     classicalAccuracy: classical ? classical.accuracy : null,
     n: probes.length,
   };
