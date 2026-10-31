@@ -149,8 +149,8 @@ function extractTitle(html) {
   return "";
 }
 
-function authorsFromJsonLd(html) {
-  const names = [];
+function walkJsonLdNodes(html) {
+  const nodes = [];
   const re =
     /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   let m;
@@ -161,59 +161,155 @@ function authorsFromJsonLd(html) {
     } catch {
       continue;
     }
-    const nodes = [];
     if (Array.isArray(data)) nodes.push(...data);
     else if (data && typeof data === "object") {
       nodes.push(data);
       if (Array.isArray(data["@graph"])) nodes.push(...data["@graph"]);
     }
-    for (const node of nodes) {
-      if (!node || typeof node !== "object") continue;
-      const type = String(node["@type"] || "");
-      if (!/Article|BlogPosting|NewsArticle/i.test(type)) continue;
-      const author = node.author;
-      const list = Array.isArray(author) ? author : author ? [author] : [];
-      for (const a of list) {
-        if (typeof a === "string" && a.trim()) names.push(a.trim());
-        else if (a && typeof a === "object" && a.name) {
-          names.push(String(a.name).trim());
-        }
+  }
+  return nodes;
+}
+
+function authorsFromJsonLd(html) {
+  const names = [];
+  for (const node of walkJsonLdNodes(html)) {
+    if (!node || typeof node !== "object") continue;
+    const type = String(node["@type"] || "");
+    if (!/Article|BlogPosting|NewsArticle|TechArticle|WebPage/i.test(type)) continue;
+    const author = node.author;
+    const list = Array.isArray(author) ? author : author ? [author] : [];
+    for (const a of list) {
+      if (typeof a === "string" && a.trim()) names.push(a.trim());
+      else if (a && typeof a === "object" && a.name) {
+        names.push(String(a.name).trim());
       }
     }
   }
   return names.filter(Boolean);
 }
 
-function extractAuthor(html) {
-  const fromMeta = metaContent(html, [
-    "author",
-    "article:author",
-    "og:article:author",
-    "citation_author",
-    "sailthru.author",
-  ]);
-  if (fromMeta && !/^https?:/i.test(fromMeta)) return fromMeta.slice(0, 200);
-  const ld = authorsFromJsonLd(html);
-  if (ld.length) return ld.join(", ").slice(0, 200);
-  const rel = String(html || "").match(
-    /<a[^>]+rel=["'][^"']*author[^"']*["'][^>]*>([\s\S]*?)<\/a>/i,
-  );
-  if (rel) return decodeEntities(stripTags(rel[1])).slice(0, 200);
-  const byline = String(html || "").match(
-    /class=["'][^"']*\b(?:author|byline)\b[^"']*["'][^>]*>([\s\S]*?)<\/(?:span|div|p|a|h[1-6])>/i,
-  );
-  if (byline) {
-    const t = decodeEntities(stripTags(byline[1])).trim();
-    if (t && t.length < 120) return t;
+function organizationFromJsonLd(html) {
+  for (const node of walkJsonLdNodes(html)) {
+    if (!node || typeof node !== "object") continue;
+    const type = String(node["@type"] || "");
+    if (/^Organization$/i.test(type) && node.name) {
+      return String(node.name).trim().slice(0, 200);
+    }
+    if (node.publisher && typeof node.publisher === "object" && node.publisher.name) {
+      return String(node.publisher.name).trim().slice(0, 200);
+    }
+    if (node.isPartOf && typeof node.isPartOf === "object" && node.isPartOf.name) {
+      return String(node.isPartOf.name).trim().slice(0, 200);
+    }
   }
   return "";
 }
 
 function extractSiteName(html) {
-  return metaContent(html, ["og:site_name", "application-name", "twitter:site"]).replace(
-    /^@/,
-    "",
+  return metaContent(html, ["og:site_name", "application-name", "twitter:site"])
+    .replace(/^@/, "")
+    .slice(0, 200);
+}
+
+/**
+ * Author extraction order (never invent; never use the model):
+ * 1. schema.org / JSON-LD author
+ * 2. meta name=author
+ * 3. article:author (and og:article:author)
+ * 4. byline / rel=author
+ * 5. site's organization name (JSON-LD Organization / publisher / og:site_name)
+ *
+ * @returns {{ author: string, authorSource: string, authorUnknown: boolean, siteName: string }}
+ */
+function resolveAuthorAttribution(html) {
+  const siteName =
+    extractSiteName(html) || organizationFromJsonLd(html) || "";
+
+  const ld = authorsFromJsonLd(html);
+  if (ld.length) {
+    return {
+      author: ld.join(", ").slice(0, 200),
+      authorSource: "jsonld",
+      authorUnknown: false,
+      siteName,
+    };
+  }
+
+  const metaAuthor = metaContent(html, ["author"]);
+  if (metaAuthor && !/^https?:/i.test(metaAuthor)) {
+    return {
+      author: metaAuthor.slice(0, 200),
+      authorSource: "meta_author",
+      authorUnknown: false,
+      siteName,
+    };
+  }
+
+  const articleAuthor = metaContent(html, [
+    "article:author",
+    "og:article:author",
+    "citation_author",
+    "sailthru.author",
+  ]);
+  if (articleAuthor && !/^https?:/i.test(articleAuthor)) {
+    return {
+      author: articleAuthor.slice(0, 200),
+      authorSource: "article_author",
+      authorUnknown: false,
+      siteName,
+    };
+  }
+
+  const rel = String(html || "").match(
+    /<a[^>]+rel=["'][^"']*author[^"']*["'][^>]*>([\s\S]*?)<\/a>/i,
   );
+  if (rel) {
+    const t = decodeEntities(stripTags(rel[1])).trim();
+    if (t && t.length < 120) {
+      return {
+        author: t.slice(0, 200),
+        authorSource: "rel_author",
+        authorUnknown: false,
+        siteName,
+      };
+    }
+  }
+  const byline = String(html || "").match(
+    /class=["'][^"']*\b(?:author|byline)\b[^"']*["'][^>]*>([\s\S]*?)<\/(?:span|div|p|a|h[1-6])>/i,
+  );
+  if (byline) {
+    const t = decodeEntities(stripTags(byline[1])).trim();
+    if (t && t.length < 120 && !/^https?:/i.test(t)) {
+      return {
+        author: t.slice(0, 200),
+        authorSource: "byline",
+        authorUnknown: false,
+        siteName,
+      };
+    }
+  }
+
+  const org = organizationFromJsonLd(html) || siteName;
+  if (org) {
+    return {
+      author: org.slice(0, 200),
+      authorSource: "organization",
+      authorUnknown: false,
+      siteName: siteName || org,
+    };
+  }
+
+  return {
+    author: "",
+    authorSource: "none",
+    authorUnknown: true,
+    siteName,
+  };
+}
+
+/** @deprecated Prefer resolveAuthorAttribution — kept for call-site compatibility. */
+function extractAuthor(html) {
+  return resolveAuthorAttribution(html).author;
 }
 
 function extractMainHtml(html) {
@@ -327,8 +423,9 @@ async function fetchPage(url, { fetchFn, lookupFn } = {}) {
   }
   const html = buf.toString("utf8");
   const title = extractTitle(html) || parsed.hostname;
-  const author = extractAuthor(html);
-  const siteName = extractSiteName(html);
+  const attr = resolveAuthorAttribution(html);
+  const author = attr.author;
+  const siteName = attr.siteName;
   const mainHtml = extractMainHtml(html);
   let text = stripTags(mainHtml).slice(0, MAX_TEXT_CHARS);
   if (text.length < 80) {
@@ -342,16 +439,24 @@ async function fetchPage(url, { fetchFn, lookupFn } = {}) {
   const links = extractLinks(mainHtml || html, finalUrl);
   const paragraphs = paragraphsFromText(text);
   const words = wordsFromText(text);
-  const attribution = [title, author ? `by ${author}` : "", siteName ? `(${siteName})` : ""]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
+  const attribution = formatByline({
+    author,
+    authorUnknown: attr.authorUnknown,
+    siteName,
+    title,
+  });
+
+  if (attr.authorUnknown) {
+    logAuthorUnknown({ sourceUrl: finalUrl, title, siteName });
+  }
 
   return {
     sourceUrl: finalUrl,
     requestedUrl: parsed.href,
     title,
     author,
+    authorSource: attr.authorSource,
+    authorUnknown: Boolean(attr.authorUnknown),
     siteName,
     attribution: attribution || title || finalUrl,
     text,
@@ -360,6 +465,32 @@ async function fetchPage(url, { fetchFn, lookupFn } = {}) {
     links,
     fetchedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Display byline: "By <Author>" (or "Author unknown") plus optional site.
+ * Never invents an author — empty/unknown stays "Author unknown".
+ */
+function formatByline({ author, authorUnknown, siteName, title } = {}) {
+  void authorUnknown;
+  const known = String(author || "").trim();
+  const byline = known ? `By ${known}` : "Author unknown";
+  const site = String(siteName || "").trim();
+  return [title ? String(title).trim() : "", byline, site ? `(${site})` : ""]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
+function logAuthorUnknown({ sourceUrl, title, siteName } = {}) {
+  console.warn(
+    JSON.stringify({
+      kind: "reading_author_unknown",
+      sourceUrl: String(sourceUrl || ""),
+      title: String(title || ""),
+      siteName: String(siteName || ""),
+    }),
+  );
 }
 
 module.exports = {
@@ -375,6 +506,10 @@ module.exports = {
   extractAuthor,
   extractSiteName,
   authorsFromJsonLd,
+  organizationFromJsonLd,
+  resolveAuthorAttribution,
+  formatByline,
+  logAuthorUnknown,
   extractMainHtml,
   extractLinks,
   paragraphsFromText,

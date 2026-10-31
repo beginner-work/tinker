@@ -1,0 +1,11 @@
+{
+  "id": "author-jsonld-01",
+  "notes": "JSON-LD Article Person author wins over meta name=author",
+  "html": "<!doctype html><html><head><meta name=\"author\" content=\"Meta Name\" /><script type=\"application/ld+json\">{\"@type\":\"Article\",\"author\":{\"@type\":\"Person\",\"name\":\"Json Author\"}}</script><meta property=\"og:site_name\" content=\"Example Blog\" /></head><body><article><p>Body.</p></article></body></html>",
+  "expect": {
+    "author": "Json Author",
+    "authorSource": "jsonld",
+    "authorUnknown": false,
+    "siteName": "Example Blog"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "author-meta-02",
+  "notes": "meta name=author when no JSON-LD author",
+  "html": "<!doctype html><html><head><meta name=\"author\" content=\"Ada Meta\" /><meta property=\"og:site_name\" content=\"Meta Site\" /></head><body><article><p>Body.</p></article></body></html>",
+  "expect": {
+    "author": "Ada Meta",
+    "authorSource": "meta_author",
+    "authorUnknown": false,
+    "siteName": "Meta Site"
+  }
+}

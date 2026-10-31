@@ -52,7 +52,9 @@ names in `src/renderer/lib/metrics/events.js` (`PROPS`):
 | `anonymousId` | `session_start`, `question_asked`, `sdk_loaded`, `answer_link_click` |
 | `sessionId` | `session_start`, `question_asked`, `answer_link_click` |
 | `host` | `sdk_loaded` (embed hostname) |
-| `sourceHost` | article `companyHost` on session/ask/click |
+| `sourceHost` | hostname of the text being read (`companyHost`; never a full URL) |
+| `site_domain` | same hostname-only value as `sourceHost` / `companyHost` on `session_start` and `question_asked` (iOS + web). Never emit a full URL. |
+| `platform` | client surface: `web` \| `ios` \| `android` \| `embed` |
 | `target` | `answer_link_click` (`linkedin` \| `email` \| `source`) |
 | `input` | `question_asked` (`voice` \| `typed`) |
 
@@ -69,6 +71,11 @@ follow-up; it is not a resume line item above.
   "questionsPerSession": 0,
   "repeatUsers": 0,
   "embedHosts": ["example.com"],
+  "distinctSites": ["docs.example.com"],
+  "byPlatform": {
+    "ios": { "users": 0, "questions": 0, "sessions": 0 },
+    "web": { "users": 0, "questions": 0, "sessions": 0 }
+  },
   "latestEvalPassRate": {
     "passRate": 0.0,
     "caseCount": 0,
@@ -83,6 +90,11 @@ follow-up; it is not a resume line item above.
   "generatedAt": "2026-01-01T00:00:00.000Z"
 }
 ```
+
+| Field | Exact definition |
+| --- | --- |
+| `distinctSites` | Distinct non-empty `companyHost` values (hostname only) on non-owner `ReadingQuestion` rows with `status = "ok"`. Never full URLs. |
+| `byPlatform` | Per-`platform` counts among non-owner sessions/questions: `sessions`, `questions`, and resume `users` (anonymous ids that also qualify under Users). Empty/`unknown` buckets cover legacy rows with no platform. |
 
 Auth: `Authorization: Bearer <TINKER_SERVICE_TOKEN>`,
 `X-Tinker-Service-Token`, or an owner Stytch session.

@@ -148,7 +148,13 @@ describe("typed emit helpers", () => {
   test("non-owner emit goes through trackFn with contract name", async () => {
     const calls = [];
     await emit.emitQuestionAsked(
-      { sessionId: "s1", anonymousId: "ra_abc", input: "typed" },
+      {
+        sessionId: "s1",
+        anonymousId: "ra_abc",
+        input: "typed",
+        site_domain: "docs.example.com",
+        platform: "ios",
+      },
       {
         isOwner: false,
         trackFn: async (name, props) => {
@@ -159,6 +165,14 @@ describe("typed emit helpers", () => {
     assert.equal(calls.length, 1);
     assert.equal(calls[0].name, "question_asked");
     assert.equal(calls[0].props.input, "typed");
+    assert.equal(calls[0].props.site_domain, "docs.example.com");
+    assert.equal(calls[0].props.platform, "ios");
+  });
+
+  test("normalizePlatform accepts ios/web/android/embed only", () => {
+    assert.equal(events.normalizePlatform("ios"), "ios");
+    assert.equal(events.normalizePlatform("WEB"), "web");
+    assert.equal(events.normalizePlatform("desktop"), "");
   });
 
   test("isExcludedEmbedHost drops lindowlabs, localhost, vercel, tinker", () => {
@@ -342,12 +356,12 @@ describe("emission paths stay wired", () => {
         reading.createSession(p, {
           ...args,
           fetchPageFn: async () => ({
-            sourceUrl: "https://engineering.acme-example.test/blog/oncall",
+            sourceUrl: "https://docs.acme-example.test/guide/oncall",
             requestedUrl: args.url,
-            title: "On-call",
+            title: "On-call guide",
             author: "Jordan",
-            text: "Acme rebuilt on-call around three rules with runbooks and handoff notes for every shift.",
-            paragraphs: ["Acme rebuilt on-call around three rules."],
+            text: "The docs rebuilt on-call around three rules with runbooks and handoff notes for every shift.",
+            paragraphs: ["The docs rebuilt on-call around three rules."],
             wordCount: 20,
             links: [],
           }),
@@ -375,9 +389,10 @@ describe("emission paths stay wired", () => {
         url: "/api/reading?action=session",
         headers: {},
         body: {
-          url: "https://engineering.acme-example.test/blog/oncall",
+          url: "https://docs.acme-example.test/guide/oncall",
           anonymousId: "ra_aaaaaaaaaaaaaaaa",
           embedHost: "customer.example.com",
+          platform: "ios",
         },
       },
       sessionRes,
@@ -396,6 +411,7 @@ describe("emission paths stay wired", () => {
           question: "What is the first rule?",
           input: "typed",
           anonymousId: "ra_aaaaaaaaaaaaaaaa",
+          platform: "ios",
         },
       },
       askRes,
@@ -424,6 +440,13 @@ describe("emission paths stay wired", () => {
     assert.ok(names.includes("question_asked"), JSON.stringify(names));
     assert.ok(names.includes("answer_link_click"), JSON.stringify(names));
     assert.equal(prisma.__embedHosts.has("customer.example.com"), true);
+    const sessionEvt = emitted.find((e) => e.name === "session_start");
+    assert.equal(sessionEvt.props.platform, "ios");
+    assert.equal(sessionEvt.props.site_domain, "docs.acme-example.test");
+    const askEvt = emitted.find((e) => e.name === "question_asked");
+    assert.equal(askEvt.props.platform, "ios");
+    assert.equal(askEvt.props.site_domain, "docs.acme-example.test");
+    assert.ok(!String(askEvt.props.site_domain).includes("/"));
   });
 
   test("owner session does not emit vercel events", async () => {
@@ -516,16 +539,80 @@ describe("GET /api/metrics + collectResumeMetrics", () => {
     const day40 = new Date("2026-09-20T12:00:00.000Z");
 
     const sessions = [
-      { id: "s1", anonymousId: "ra_u1", isOwner: false, createdAt: day10, questionCount: 1 },
-      { id: "s2", anonymousId: "ra_u1", isOwner: false, createdAt: day10, questionCount: 1 },
-      { id: "s3", anonymousId: "ra_u2", isOwner: false, createdAt: day40, questionCount: 1 },
-      { id: "s4", anonymousId: "ra_owner", isOwner: true, createdAt: day10, questionCount: 5 },
+      {
+        id: "s1",
+        anonymousId: "ra_u1",
+        isOwner: false,
+        createdAt: day10,
+        questionCount: 1,
+        companyHost: "docs.example.com",
+        platform: "ios",
+      },
+      {
+        id: "s2",
+        anonymousId: "ra_u1",
+        isOwner: false,
+        createdAt: day10,
+        questionCount: 1,
+        companyHost: "docs.example.com",
+        platform: "ios",
+      },
+      {
+        id: "s3",
+        anonymousId: "ra_u2",
+        isOwner: false,
+        createdAt: day40,
+        questionCount: 1,
+        companyHost: "readme.example.org",
+        platform: "web",
+      },
+      {
+        id: "s4",
+        anonymousId: "ra_owner",
+        isOwner: true,
+        createdAt: day10,
+        questionCount: 5,
+        companyHost: "secret.example",
+        platform: "web",
+      },
     ];
     const questions = [
-      { sessionId: "s1", anonymousId: "ra_u1", isOwner: false, status: "ok", createdAt: day10 },
-      { sessionId: "s2", anonymousId: "ra_u1", isOwner: false, status: "ok", createdAt: day10 },
-      { sessionId: "s3", anonymousId: "ra_u2", isOwner: false, status: "ok", createdAt: day40 },
-      { sessionId: "s4", anonymousId: "ra_owner", isOwner: true, status: "ok", createdAt: day10 },
+      {
+        sessionId: "s1",
+        anonymousId: "ra_u1",
+        isOwner: false,
+        status: "ok",
+        createdAt: day10,
+        companyHost: "docs.example.com",
+        platform: "ios",
+      },
+      {
+        sessionId: "s2",
+        anonymousId: "ra_u1",
+        isOwner: false,
+        status: "ok",
+        createdAt: day10,
+        companyHost: "docs.example.com",
+        platform: "ios",
+      },
+      {
+        sessionId: "s3",
+        anonymousId: "ra_u2",
+        isOwner: false,
+        status: "ok",
+        createdAt: day40,
+        companyHost: "readme.example.org",
+        platform: "web",
+      },
+      {
+        sessionId: "s4",
+        anonymousId: "ra_owner",
+        isOwner: true,
+        status: "ok",
+        createdAt: day10,
+        companyHost: "secret.example",
+        platform: "web",
+      },
     ];
     const prisma = {
       readingSession: {
@@ -570,6 +657,12 @@ describe("GET /api/metrics + collectResumeMetrics", () => {
     assert.ok(payload.usersPerMonth.some((r) => r.month === "2026-10" && r.users === 1));
     assert.ok(payload.usersPerMonth.some((r) => r.month === "2026-09" && r.users === 1));
     assert.deepEqual(payload.embedHosts, ["customer.example.com"]);
+    assert.deepEqual(payload.distinctSites, ["docs.example.com", "readme.example.org"]);
+    assert.equal(payload.byPlatform.ios.questions, 2);
+    assert.equal(payload.byPlatform.ios.sessions, 2);
+    assert.equal(payload.byPlatform.ios.users, 1);
+    assert.equal(payload.byPlatform.web.questions, 1);
+    assert.equal(payload.byPlatform.web.sessions, 1);
     assert.equal(payload.latestEvalPassRate.passRate, 0.91);
     assert.equal(payload.latestEvalPassRate.caseCount, 9);
     assert.ok(payload.questionsPerSession > 0);
@@ -585,6 +678,8 @@ describe("GET /api/metrics + collectResumeMetrics", () => {
         questionsPerSession: 2,
         repeatUsers: 0,
         embedHosts: [],
+        distinctSites: ["docs.example.com"],
+        byPlatform: { ios: { users: 1, questions: 2, sessions: 1 } },
         latestEvalPassRate: null,
         usersPerMonth: [],
         usersLast30Days: 1,
@@ -615,6 +710,8 @@ describe("GET /api/metrics + collectResumeMetrics", () => {
     assert.ok("usersLast30Days" in ok.body);
     assert.ok("usersPerMonth" in ok.body);
     assert.ok("embedHosts" in ok.body);
+    assert.ok("distinctSites" in ok.body);
+    assert.ok("byPlatform" in ok.body);
     assert.ok("latestEvalPassRate" in ok.body);
   });
 

@@ -1,0 +1,10 @@
+{
+  "id": "author-article-03",
+  "notes": "article:author property",
+  "html": "<!doctype html><html><head><meta property=\"article:author\" content=\"Art Icle\" /></head><body><article><p>Body.</p></article></body></html>",
+  "expect": {
+    "author": "Art Icle",
+    "authorSource": "article_author",
+    "authorUnknown": false
+  }
+}

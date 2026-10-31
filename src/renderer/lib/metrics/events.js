@@ -42,10 +42,24 @@
     SESSION_ID: "sessionId",
     HOST: "host",
     SOURCE_HOST: "sourceHost",
+    /** Hostname only of the article being read (never a full URL). */
+    SITE_DOMAIN: "site_domain",
+    /** Client surface: web | ios | android | embed */
+    PLATFORM: "platform",
     TARGET: "target",
     INPUT: "input",
     IS_OWNER: "isOwner",
   });
+
+  const PLATFORMS = Object.freeze(["web", "ios", "android", "embed"]);
+
+  function normalizePlatform(raw) {
+    const v = String(raw || "")
+      .trim()
+      .toLowerCase();
+    if (PLATFORMS.includes(v)) return v;
+    return "";
+  }
 
   const EXCLUDED_EMBED_HOSTS = Object.freeze([
     "lindowlabs.dev",
@@ -125,10 +139,12 @@
     EVENTS,
     EVENT_NAMES,
     PROPS,
+    PLATFORMS,
     EXCLUDED_EMBED_HOSTS,
     isExcludedEmbedHost,
     isOwnerTraffic,
     assertKnownEvent,
     sanitizeProps,
+    normalizePlatform,
   };
 });
