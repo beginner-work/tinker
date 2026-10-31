@@ -19,8 +19,10 @@ const taskLib = require("./lib/task.js") as typeof import("./lib/task.js");
 const scorers = require("./lib/scorers.js") as typeof import("./lib/scorers.js");
 
 const essays = load.loadEssaysFixture();
+const readingPages = load.loadReadingPagesFixture();
 const cases = load.loadCases();
 const rows = load.toEvalRows(cases);
+const readingCases = cases.filter((c) => c.source === "reading");
 
 Eval("tinker-ask", {
   experimentName: "ask-tyler-agreement",
@@ -28,10 +30,13 @@ Eval("tinker-ask", {
   metadata: {
     caseCount: cases.length,
     essayFixtureCount: essays.length,
+    readingPageFixtureCount: readingPages.length,
+    readingCaseCount: readingCases.length,
     sources: {
       essay: cases.filter((c) => c.source === "essay").length,
       synthetic: cases.filter((c) => c.source === "synthetic").length,
       visitor: cases.filter((c) => c.source === "visitor").length,
+      reading: readingCases.length,
     },
     withTylerAnswer: cases.filter((c) => c.tyler_answer != null).length,
     gate: "ask.reporter.ts / THRESHOLDS.md",
@@ -44,10 +49,15 @@ Eval("tinker-ask", {
       expect: hooks.expected?.expect || {},
       category: input.category || hooks.expected?.category || "agreement",
     };
-    const result = await taskLib.runTask(caseRow, { essays });
+    const result = await taskLib.runTask(caseRow, { essays, pages: readingPages });
     hooks.span.log({
       metrics: { latency_ms: result.latencyMs },
-      metadata: { path: result.path, model: result.model },
+      metadata: {
+        path: result.path,
+        model: result.model,
+        toolUsed: result.toolUsed || false,
+        resumeWordIndex: result.resumeWordIndex,
+      },
     });
     return result;
   },
@@ -57,6 +67,8 @@ Eval("tinker-ask", {
     scorers.KeywordExpect,
     scorers.SentenceBudget,
     scorers.GroundingJudge,
+    scorers.ToolUseDecision,
+    scorers.ResumeAfterInterrupt,
   ],
 }, "tinker-ask-gate");
 
@@ -64,7 +76,8 @@ console.error(
   `[tinker-ask] loaded ${cases.length} cases ` +
     `(essay=${cases.filter((c) => c.source === "essay").length}, ` +
     `synthetic=${cases.filter((c) => c.source === "synthetic").length}, ` +
-    `visitor=${cases.filter((c) => c.source === "visitor").length}; ` +
+    `visitor=${cases.filter((c) => c.source === "visitor").length}, ` +
+    `reading=${readingCases.length}; ` +
     `with tyler_answer=${cases.filter((c) => c.tyler_answer != null).length}; ` +
-    `essay fixtures=${essays.length})`,
+    `essay fixtures=${essays.length}; reading page fixtures=${readingPages.length})`,
 );

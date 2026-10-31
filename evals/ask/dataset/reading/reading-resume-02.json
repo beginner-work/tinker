@@ -1,0 +1,18 @@
+{
+  "id": "reading-resume-02",
+  "source": "reading",
+  "category": "reading_resume",
+  "question": "Quick clarification: did they stop using git SHAs in cache keys?",
+  "input": "voice",
+  "rawTranscript": "quick clarification did they stop using git shas in cache keys",
+  "pageId": "northstar-cache",
+  "position": { "wordIndex": 18 },
+  "expect": {
+    "minSentences": 1,
+    "maxSentences": 4,
+    "mustIncludeAny": ["content hash", "hash", "template"],
+    "shouldFetchLink": false,
+    "resumeWordIndex": 18
+  },
+  "notes": "Voice interrupt; resume at word 18."
+}

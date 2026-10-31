@@ -1,0 +1,69 @@
+[
+  {
+    "id": "acme-sre-oncall",
+    "sourceUrl": "https://engineering.acme-example.test/blog/oncall-rotation",
+    "title": "How Acme Redesigned On-Call",
+    "author": "Jordan Lee",
+    "companyHost": "engineering.acme-example.test",
+    "text": "Acme's platform team rebuilt on-call around three rules. First, every page must name a single owner service. Second, runbooks live next to the service repo, not in a wiki. Third, handoff notes are written before the shift ends, not after. We cut mean time to acknowledge from fourteen minutes to four. The follow-up post on paging policy is linked below. Our next step is quiet hours for non-customer paths.",
+    "links": [
+      {
+        "url": "https://engineering.acme-example.test/blog/paging-policy",
+        "text": "paging policy"
+      },
+      {
+        "url": "https://engineering.acme-example.test/blog/runbook-layout",
+        "text": "runbook layout"
+      }
+    ],
+    "linkedPages": {
+      "https://engineering.acme-example.test/blog/paging-policy": {
+        "title": "Paging Policy at Acme",
+        "author": "Sam Ortiz",
+        "text": "Acme pages a human only when a customer-facing SLO is at risk or a dependency has been down for more than five minutes. Informational alerts go to a chat channel. Weekend pages require a customer impact tag."
+      }
+    }
+  },
+  {
+    "id": "northstar-cache",
+    "sourceUrl": "https://blog.northstar-example.test/posts/edge-cache-keys",
+    "title": "Edge Cache Keys That Survive Deployments",
+    "author": "Riley Chen",
+    "companyHost": "blog.northstar-example.test",
+    "text": "Northstar stopped baking git SHAs into edge cache keys. Instead we version the key with a content hash of the rendered template. Deploys no longer flush the whole CDN. Stale-while-revalidate covers the brief window while the new hash warms. Rollback is a matter of republishing the previous template hash. Details on purge APIs are in the linked design note.",
+    "links": [
+      {
+        "url": "https://blog.northstar-example.test/posts/purge-api",
+        "text": "purge API design note"
+      }
+    ],
+    "linkedPages": {
+      "https://blog.northstar-example.test/posts/purge-api": {
+        "title": "Purge API Design Note",
+        "author": "Riley Chen",
+        "text": "The purge API accepts a template hash, never a path glob. Operators can soft-purge (mark stale) or hard-purge (delete). Soft-purge is the default in production."
+      }
+    }
+  },
+  {
+    "id": "harbor-migrations",
+    "sourceUrl": "https://tech.harbor-example.test/2024/expand-contract-migrations",
+    "title": "Expand and Contract Migrations Without Downtime",
+    "author": "Avery Kim",
+    "companyHost": "tech.harbor-example.test",
+    "text": "Harbor ships schema changes in three deploys. Expand adds the new column or table while old code keeps working. Migrate dual-writes and backfills. Contract removes the old path once metrics show the new one is healthy. We never rename a column in place. The checklist for dual-write validation is linked from this post.",
+    "links": [
+      {
+        "url": "https://tech.harbor-example.test/2024/dual-write-checklist",
+        "text": "dual-write checklist"
+      }
+    ],
+    "linkedPages": {
+      "https://tech.harbor-example.test/2024/dual-write-checklist": {
+        "title": "Dual-Write Checklist",
+        "author": "Avery Kim",
+        "text": "Compare row counts hourly. Diff a sample of primary keys. Abort contract if mismatch rate exceeds 0.01 percent."
+      }
+    }
+  }
+]

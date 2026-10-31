@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Resume metrics contract
+
+`RESUME_METRICS.md` at the repo root is the guardrail contract for every
+resume line item (users, questions, questions per session, repeat users,
+SDK embed hosts, eval pass rate, users per month vs 30-day total). Keep
+it in place. Event names in `src/renderer/lib/metrics/events.js` must
+stay in sync with that file — CI fails on drift. Do not move definitions
+to `evals/METRICS.md`. Do not commit goal numbers except in files named
+`DO_NOT_PUBLISH`. Owner traffic (`?owner=1`) is always excluded.
+
 ## Before every push
 
 Before any `git push`, run the full suites exactly as CI does:

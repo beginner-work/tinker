@@ -1,0 +1,17 @@
+{
+  "id": "reading-tool-03-dualwrite",
+  "source": "reading",
+  "category": "reading_tool_use",
+  "question": "From the dual-write checklist link, when should Harbor abort the contract step?",
+  "input": "typed",
+  "pageId": "harbor-migrations",
+  "position": { "wordIndex": 25 },
+  "expect": {
+    "minSentences": 1,
+    "maxSentences": 4,
+    "mustIncludeAny": ["0.01", "mismatch"],
+    "shouldFetchLink": true,
+    "fetchUrlIncludes": "dual-write"
+  },
+  "notes": "Must fetch dual-write checklist linked source."
+}

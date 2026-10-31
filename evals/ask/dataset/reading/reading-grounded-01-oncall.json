@@ -1,0 +1,21 @@
+{
+  "id": "reading-grounded-01-oncall",
+  "source": "reading",
+  "category": "reading_grounded",
+  "question": "What three rules did Acme use when redesigning on-call?",
+  "input": "typed",
+  "pageId": "acme-sre-oncall",
+  "position": { "wordIndex": 20 },
+  "expect": {
+    "minSentences": 1,
+    "maxSentences": 4,
+    "mustIncludeAnyOfGroups": [
+      ["owner", "single owner", "owner service"],
+      ["runbook", "repo"],
+      ["handoff"]
+    ],
+    "mustNotIncludeAny": ["em dash", "—"],
+    "shouldFetchLink": false
+  },
+  "notes": "Grounded answer from synthetic Acme on-call page; no linked fetch."
+}

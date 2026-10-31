@@ -502,6 +502,28 @@ For any host site, use the TypeScript package in `packages/tinker-sdk`
 
 See `packages/tinker-sdk/README.md` and `packages/tinker-sdk/examples/basic-host/`.
 
+## Reading agent + resume metrics
+
+Milestone 1 reading agent: `POST /api/reading` (session / speak / ask /
+event) and the embeddable widget under `/reading-widget/`. Embed notes:
+[`docs/reading-agent-embed.md`](docs/reading-agent-embed.md).
+
+**Resume metrics contract:** [`RESUME_METRICS.md`](RESUME_METRICS.md) at
+the repo root. Every resume line (users, questions, questions per
+session, repeat users, SDK embed hosts, eval pass rate, users per month
+vs a 30-day total) maps to one definition, the Vercel Web Analytics
+event name actually emitted, and the matching `GET /api/metrics` field.
+Event names are locked to `src/renderer/lib/metrics/events.js`; CI fails
+on drift. Goal numbers belong only in files named `DO_NOT_PUBLISH`.
+Owner traffic (`?owner=1`) is always excluded.
+
+`GET /api/metrics` returns the aggregate payload (service token or
+owner session). Custom events (`session_start`, `question_asked`,
+`sdk_loaded`, `answer_link_click`) dual-write through the typed emit
+helpers to Prisma and `@vercel/analytics` `track()`. Enable Vercel Web
+Analytics (and custom events on the plan that supports them) on the
+Production project only — never Preview.
+
 ## Debugging preview deploys
 
 When a Vercel preview misbehaves in a way you can't reproduce locally —

@@ -51,6 +51,9 @@
     { "source": "/repo/files", "destination": "/repo/files/index.html" },
     { "source": "/repo/files/", "destination": "/repo/files/index.html" },
     { "source": "/api/essay-feed/:action", "destination": "/api/essay-feed?action=:action" },
+    { "source": "/api/reading/:action", "destination": "/api/reading?action=:action" },
+    { "source": "/reading-widget", "destination": "/reading-widget/index.html" },
+    { "source": "/reading-widget/", "destination": "/reading-widget/index.html" },
     { "source": "/gmail", "destination": "/api/gmail" },
     { "source": "/gmail/", "destination": "/api/gmail" }
   ],
